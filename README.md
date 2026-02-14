@@ -61,7 +61,7 @@ classDiagram
         +load(path)
         #_fit_backend(X)
     }
-    
+
     %% Layer 1.5
     class BaseSklearnDetector {
         #_fit_backend(X)
@@ -71,7 +71,7 @@ classDiagram
         +device: str
         #_fit_backend(X)
     }
-    
+
     %% Mixins
     class FeatureImportanceMixin {
         +get_feature_importances()
@@ -83,11 +83,11 @@ classDiagram
     %% Inheritance
     BaseDetector <|-- BaseSklearnDetector
     BaseDetector <|-- BaseDeepLearningAdapter
-    
+
     %% Realizations
     BaseSklearnDetector <|-- IsolationForestAdapter
     BaseDeepLearningAdapter <|-- LSTMAdapter
-    
+
     %% Mixin Usage
     IsolationForestAdapter --|> FeatureImportanceMixin
     LSTMAdapter --|> ReconstructionMixin
@@ -110,24 +110,24 @@ sequenceDiagram
     participant Backend as External Lib (e.g. Torch)
 
     User->>Wrapper: fit(X)
-    
+
     rect rgb(240, 248, 255)
     note right of Wrapper: 1. Валидация
     Wrapper->>Validator: validate_input(X, task)
     Validator-->>Wrapper: Clean X (Numpy/Tensor)
     end
-    
+
     rect rgb(255, 240, 240)
     note right of Wrapper: 2. Инфраструктура
     Wrapper->>Core: _set_seed()
     end
-    
+
     rect rgb(240, 255, 240)
     note right of Wrapper: 3. Обучение Бэкенда
     Wrapper->>Backend: Init & Fit (with mapped params)
     Backend-->>Wrapper: Trained Model
     end
-    
+
     rect rgb(255, 255, 240)
     note right of Wrapper: 4. Авто-порог
     Wrapper->>Wrapper: predict_score(X) -> train_scores

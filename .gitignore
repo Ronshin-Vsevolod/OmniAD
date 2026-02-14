@@ -1,0 +1,129 @@
+# ==============================================================================
+# 1. Python Standard & Build Artifacts
+# ==============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / Packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ==============================================================================
+# 2. Virtual Environments
+# ==============================================================================
+# Common names for local virtual environments
+venv/
+env/
+.env
+.venv/
+venv.bak/
+myenv/
+
+# ==============================================================================
+# 3. IDE & Editor Configuration
+# ==============================================================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ==============================================================================
+# 4. Testing & Quality Assurance
+# ==============================================================================
+# Pytest and Coverage
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+htmlcov/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+.ruff_cache
+.mypy_cache
+
+# ==============================================================================
+# 5. Documentation (Sphinx/MkDocs)
+# ==============================================================================
+docs/_build/
+docs/build/
+site/
+
+# ==============================================================================
+# 6. Data Science & Machine Learning (Generic)
+# ==============================================================================
+# Jupyter Notebook checkpoints (garbage)
+.ipynb_checkpoints
+
+# Large data files (CSV, Parquet, Excel, etc.)
+# NOTE: We allow small CSVs inside 'tests/' or 'examples/', but ignore them elsewhere.
+*.csv
+*.tsv
+*.parquet
+*.xls
+*.xlsx
+!tests/**/*.csv
+!examples/**/*.csv
+
+# Deep Learning Weights & Checkpoints
+*.pt
+*.pth
+*.h5
+*.hdf5
+*.ckpt
+*.safetensors
+
+# Scikit-learn / Joblib persistence
+*.pkl
+*.pickle
+*.joblib
+
+# ==============================================================================
+# 7. Project Specific (Anomaly Detection Library)
+# ==============================================================================
+# Ignored datasets folder (keep structure via .gitkeep)
+data/
+!data/.gitkeep
+
+# Serialized models (TDD Architecture: ZIP containers)
+*.zip
+
+# Temporary directories created during save/load debugging
+tmp/
+temp/
+debug_output/
+
+# Logs
+logs/
+*.log
+
+# Profiling data
+*.prof

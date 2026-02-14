@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "omniad"
+version = "0.1.0"
+description = "Universal Anomaly Detection Library"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.21",
+    "scikit-learn>=1.0",
+    "scipy>=1.7",
+    "joblib>=1.1",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+exclude = ["myenv", "venv", ".venv"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "N",   # pep8-naming
+]
+ignore = [
+    "N803", # allow arguments 'X'
+    "N806"
+]
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+ignore_missing_imports = true
+disallow_untyped_defs = true
+exclude = ["myenv/", "venv/"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+]
