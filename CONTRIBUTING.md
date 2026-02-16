@@ -45,3 +45,17 @@ def fit(self, X, y=None):
 ## 4. Exceptions
 Never raise generic Exception or ValueError in core logic.
 Use custom exceptions from OmniAD.core.exceptions.
+
+## 5. Standard Parameters
+We adhere to a single list of parameters, compiled according to the principle of necessity and sufficiency for the majority.
+
+### Approved Parameter Names
+
+| **Parameter**     | **Type**       | **Description**                                      |
+|-------------------|----------------|------------------------------------------------------|
+| **n_estimators**  | `int`          | Number of base estimators (trees)                    |
+| **contamination** | `float`        | Proportion of outliers / anomalies expected          |
+| **n_jobs**        | `int`          | Number of jobs to run in parallel (-1 = all cores)   |
+| **random_state**  | `int`          | Controls randomness for reproducibility              |
+| **verbose**       | `int` or `bool`| Verbosity level of output                            |
+| **window_size**   | `int`          | Size of the sliding window for time series data      |

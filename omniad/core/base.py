@@ -11,8 +11,8 @@ import joblib
 import numpy as np
 import numpy.typing as npt
 
-import omniad
 from omniad.core.exceptions import ModelNotFittedError
+from omniad.utils.validation import validate_input
 
 
 class BaseDetector(ABC):
@@ -51,7 +51,7 @@ class BaseDetector(ABC):
             Fitted estimator.
         """
         # 1. Validation (via utils)
-        # X = validate_input(X)
+        X = validate_input(X)
 
         # 2. Seed fixing
         self._set_seed()
@@ -176,7 +176,7 @@ class BaseDetector(ABC):
                 "class_name": self.__class__.__name__,
                 "contamination": self.contamination,
                 "threshold": self.threshold_,
-                "version": omniad.__version__,
+                "version": "0.1.0",
             }
             with open(os.path.join(tmp_dir, "metadata.json"), "w") as f:
                 json.dump(meta, f)

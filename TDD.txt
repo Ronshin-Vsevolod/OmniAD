@@ -304,7 +304,7 @@ requirements/full.txt:
 Состав: Ссылки на все вышеперечисленные файлы (-r base.txt, -r deep.txt...).
 
 	8. Структура Файлов (Monorepo)
-mylib/
+OmniAD/
 ├── core/
 │   ├── base.py                 # BaseDetector (L1)
 │   ├── adapters/               # Layer 1.5 (BaseEstimatorAdapter, etc.)
@@ -330,14 +330,14 @@ mylib/
 │   ├── plotting_graph.py       # Графики графов (networkx visualization)
 │   └── utils.py                # Общие утилиты (напр. раскраска матриц)
 │
+└── registry.py                 # mapping algorithm names to modules
 └── __init__.py                 # get_detector (Factory)
 
 	9. Примеры использования (Usage Scenarios)
 Этот раздел демонстрирует, как описанные архитектурные принципы реализуются в клиентском коде.
 9.1. Базовый сценарий (Tabular + Factory)
 Использование единой точки входа и проброс параметров через kwargs.
-code
-Python
+
 from mylib import get_detector
 
 # 1. Создание (Factory Pattern)
