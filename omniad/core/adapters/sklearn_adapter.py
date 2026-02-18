@@ -77,10 +77,10 @@ class BaseSklearnAdapter(BaseDetector):
 
         # Try standard sklearn methods
         scores: Any
-        if hasattr(self.backend_model, "score_samples"):
-            scores = self.backend_model.score_samples(X_valid)
-        elif hasattr(self.backend_model, "decision_function"):
+        if hasattr(self.backend_model, "decision_function"):
             scores = self.backend_model.decision_function(X_valid)
+        elif hasattr(self.backend_model, "score_samples"):
+            scores = self.backend_model.score_samples(X_valid)
         else:
             raise ConfigError(
                 f"Backend {type(self.backend_model)} has neither "

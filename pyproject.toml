@@ -54,6 +54,7 @@ dev = [
     "mypy>=1.0",
     "ruff>=0.1",
     "pre-commit>=3.0",
+    "pytest-cov>=4.0",
 ]
 
 deep = [
@@ -79,3 +80,6 @@ viz = [
 full = [
     "omniad[deep,text,graph,viz]"
 ]
+
+[tool.setuptools]
+packages = ["omniad"]
