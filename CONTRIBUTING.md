@@ -33,7 +33,7 @@ def fit(self, X, y=None):
         Fitted estimator.
     """
 ```
-## 3. Naming Conventions
+## 3. General Naming Conventions
 - **Classes:** CamelCase (e.g., IsolationForestAdapter).
 - **Functions/Methods:** snake_case (e.g., predict_score).
 - **Internal/Private:** Prefix with _ (e.g., _fit_backend).
@@ -59,3 +59,31 @@ We adhere to a single list of parameters, compiled according to the principle of
 | **random_state**  | `int`          | Controls randomness for reproducibility              |
 | **verbose**       | `int` or `bool`| Verbosity level of output                            |
 | **window_size**   | `int`          | Size of the sliding window for time series data      |
+
+## 6. Naming & Registry Conventions
+
+To keep the factory (`get_detector`) working, we follow strict naming rules:
+
+1.  **Algorithm Name:** The string key in `registry.py` (e.g., `"IsolationForest"`). This is what the user types.
+2.  **Class Name:** Must be `{AlgorithmName}Adapter` (e.g., `IsolationForestAdapter`).
+3.  **File Name:** Should be concise snake_case.
+    - Preferred: `iforest.py`, `lstm.py`.
+    - Allowed: `lstm_torch.py` (if disambiguation is needed).
+
+**Registration Process:**
+1.  Create `algos/domain/my_algo.py`.
+2.  Define `class MyAlgoAdapter(Base...)`.
+3.  Add `"MyAlgo": "omniad.algos.domain.my_algo"` to `omniad/registry.py`.
+
+## 7. Testing Strategy
+
+We use `pytest`. Tests are located in `tests/`.
+
+1.  **Common Tests (`tests/test_common.py`):**
+    - Automatically checks API contract (fit/predict/save/load) for ALL algorithms in registry.
+    - No need to write basic smoke tests for new algorithms manually.
+
+2.  **Parity/Logic Tests (`tests/algos/...`):**
+    - Created specifically for each algorithm (e.g., `test_iforest.py`).
+    - **Goal:** Verify that our wrapper matches the backend's math (e.g. score inversion).
+    - **Docstrings:** It is acceptable to use similar docstrings ("Verifies parity with sklearn...") across these tests as they perform similar functions for different algorithms.
