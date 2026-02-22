@@ -3,7 +3,8 @@ from typing import Any, cast
 
 from omniad.core.base import BaseDetector
 from omniad.core.exceptions import ConfigError
-from omniad.registry import _REGISTRY
+from omniad.registry import _DEPENDENCY_CHECKS, _REGISTRY
+from omniad.utils.deps import check_dependency
 
 __version__ = "0.1.0"
 
@@ -40,7 +41,15 @@ def get_detector(name: str, **kwargs: Any) -> BaseDetector:
             f"Unknown algorithm: '{name}'. Available algorithms: {available}"
         )
 
-    module_path = _REGISTRY[name]
+    entry = _REGISTRY[name]
+
+    check_dependency(
+        group=entry["requires"],
+        algo_name=name,
+        checks=_DEPENDENCY_CHECKS,
+    )
+
+    module_path = entry["module"]
 
     try:
         module = importlib.import_module(module_path)
@@ -53,12 +62,11 @@ def get_detector(name: str, **kwargs: Any) -> BaseDetector:
     # Convention: The class name must be {AlgorithmName}Adapter
     class_name = f"{name}Adapter"
 
-    try:
-        model_class = getattr(module, class_name)
-    except AttributeError as e:
+    model_class = getattr(module, class_name, None)
+    if model_class is None:
         raise AttributeError(
-            f"Module '{module_path}' does not have class '{class_name}'. "
+            f"Module '{module_path}' has no class '{class_name}'. "
             "Check naming conventions."
-        ) from e
+        )
 
     return cast(BaseDetector, model_class(**kwargs))

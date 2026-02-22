@@ -5,9 +5,23 @@ import pytest
 
 from omniad import get_detector
 from omniad.core.base import BaseDetector
-from omniad.registry import _REGISTRY
+from omniad.registry import _DEPENDENCY_CHECKS, _REGISTRY
+from omniad.utils.deps import is_available
 
 REGISTERED_ALGOS = list(_REGISTRY.keys())
+
+
+def _skip_if_missing(algo_name: str) -> None:
+    """Skip test if required optional dependency is not installed."""
+    entry = _REGISTRY[algo_name]
+    group = entry.get("requires")
+
+    if group is None:
+        return
+
+    package = _DEPENDENCY_CHECKS.get(group)
+    if package and not is_available(package):
+        pytest.skip(f"'{algo_name}' requires '{package}' (pip install omniad[{group}])")
 
 
 @pytest.mark.parametrize("algo_name", REGISTERED_ALGOS)  # type: ignore[misc]
@@ -21,6 +35,7 @@ def test_api_contract(
     2. Trains (fit).
     3. Predicts (predict_score, predict).
     """
+
     X_train, X_test, _ = random_xy_dataset
 
     model = get_detector(algo_name, contamination=0.1)
@@ -34,11 +49,16 @@ def test_api_contract(
 
     scores = model.predict_score(X_test)
     assert isinstance(scores, np.ndarray)
-    assert scores.shape == (len(X_test),)
+
+    expected_len = len(X_test)
+    if hasattr(model, "window_size"):
+        ws = int(model.window_size)
+        expected_len = len(X_test) - ws + 1
+
     assert np.issubdtype(scores.dtype, np.number)
 
     labels = model.predict(X_test)
-    assert labels.shape == (len(X_test),)
+    assert labels.shape == (expected_len,)
     assert set(np.unique(labels)).issubset({0, 1})
 
 

@@ -47,6 +47,9 @@ addopts = "-ra -q"
 testpaths = [
     "tests",
 ]
+markers = [
+    "deterministic: enable strict determinism mode",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -55,6 +58,7 @@ dev = [
     "ruff>=0.1",
     "pre-commit>=3.0",
     "pytest-cov>=4.0",
+    "pandas>=1.3",
 ]
 
 deep = [

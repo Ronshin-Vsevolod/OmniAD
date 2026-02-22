@@ -59,6 +59,13 @@ We adhere to a single list of parameters, compiled according to the principle of
 | **random_state**  | `int`          | Controls randomness for reproducibility              |
 | **verbose**       | `int` or `bool`| Verbosity level of output                            |
 | **window_size**   | `int`          | Size of the sliding window for time series data      |
+| **batch_size**    | `int`             | Number of samples per gradient update (Deep Learning)        |
+| **epochs**        | `int`             | Number of epochs to train the model                          |
+| **learning_rate** | `float`           | Optimization step size (default usually 1e-3 or 1e-4)        |
+| **device**        | `str`             | Computation device: "cpu", "cuda", or "auto"                 |
+| **hidden_dim**    | `int`             | Size of the hidden layer / state representation              |
+| **target_cols**   | `list[int]`       | Indices of columns to predict (Forecasting mode)             |
+| **score_metric**  | `str`             | Name of the metric for anomaly scoring ('mse', 'mae', etc.)  |
 
 ## 6. Naming & Registry Conventions
 

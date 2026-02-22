@@ -304,12 +304,13 @@ requirements/full.txt:
 Состав: Ссылки на все вышеперечисленные файлы (-r base.txt, -r deep.txt...).
 
 	8. Структура Файлов (Monorepo)
-OmniAD/
+omniad/
 ├── core/
 │   ├── base.py                 # BaseDetector (L1)
 │   ├── adapters/               # Layer 1.5 (BaseEstimatorAdapter, etc.)
 │   ├── mixins.py               # Reporting Mixins
-│   └── exceptions.py           # Custom Exceptions
+│   ├── exceptions.py           # Custom Exceptions
+│   └── metrics.py              # Error functions
 │
 ├── algos/                      # Layer 2 (Concrete Wrappers)
 │   ├── __init__.py             # Registry Mapping
@@ -322,7 +323,8 @@ OmniAD/
 ├── utils/                      # Layer 3
 │   ├── validation.py           # validate_input()
 │   ├── graph_loader.py         # CSV -> DataObject
-│   └── seeding.py              # _set_seed logic
+│   ├── timeseries.py           # data slicing
+│   └── deps.py                 # Lazy dependency checking
 │
 ├── viz/                        # Visualization Module
 │   ├── plotting_ts.py          # Графики для временных рядов (сигнал + аномалии)
@@ -432,7 +434,7 @@ if isinstance(model, FeatureImportanceMixin):
 Этап 2: Временные ряды и Deep Learning
 Реализация TimeSeriesMixin (оконные функции).
 Интеграция PyTorch.
-Реализация LSTM-AD.
+Реализация LSTM.
 Этап 3: Сложные модальности (NLP & Graph)
 Реализация text: Адаптеры над Transformers.
 Реализация graph: Интеграция с PyTorch Geometric.

@@ -19,7 +19,7 @@ class IsolationForestAdapter(BaseSklearnAdapter):
         The amount of contamination of the data set.
     n_jobs : int, default=-1
         The number of jobs to run in parallel. -1 means using all processors.
-    random_state : int, optional
+    random_state : int | None, default=None
         Controls the pseudo-randomness of the selection of the feature
         and split values.
     """

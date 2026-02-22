@@ -11,7 +11,8 @@ import joblib
 import numpy as np
 import numpy.typing as npt
 
-from omniad.core.exceptions import ModelNotFittedError
+from omniad.core.exceptions import ConfigError, ModelNotFittedError
+from omniad.core.metrics import reverse_lookup_metric
 from omniad.utils.validation import validate_input
 
 
@@ -190,6 +191,21 @@ class BaseDetector(ABC):
             # We make a copy and remove the heavy backend model to avoid pickling it
             state = self.__dict__.copy()
             state.pop("_backend_model", None)
+
+            # If the model has a 'score_metric' attribute that is a function,
+            # convert it to string name for pickling.
+            metric = state.get("score_metric")
+            if callable(metric):
+                name = reverse_lookup_metric(metric)
+                if name is None:
+                    raise ConfigError(
+                        "Cannot save model with unregistered custom metric. "
+                        "Please register it:\n"
+                        "  from omniad.core.metrics import register_metric\n"
+                        "  register_metric('my_metric', func)"
+                    )
+                state["score_metric"] = name
+
             joblib.dump(state, os.path.join(tmp_dir, "attributes.pkl"))
 
             # 4. Pack into .zip
