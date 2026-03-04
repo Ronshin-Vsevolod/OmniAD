@@ -17,7 +17,7 @@ import json
 import logging
 import os
 from abc import abstractmethod
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -181,7 +181,7 @@ class BaseTransformersAdapter(BaseDetector):
             outputs = self._transformer(**inputs)
 
         pooled = self._pool_output(outputs.last_hidden_state, inputs["attention_mask"])
-        return pooled.cpu().numpy()
+        return cast(npt.NDArray[Any], pooled.cpu().numpy())
 
     def _embed_single_chunked(self, text: str) -> npt.NDArray[Any]:
         """
@@ -200,7 +200,7 @@ class BaseTransformersAdapter(BaseDetector):
         input_ids = encoding["input_ids"][0]
 
         if len(input_ids) <= self.max_length:
-            return self._embed_batch([text])[0]
+            return cast(npt.NDArray[Any], self._embed_batch([text])[0])
 
         # Build chunks preserving special tokens ([CLS]...[SEP])
         cls_id = input_ids[0].item()

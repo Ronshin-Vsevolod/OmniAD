@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
+from typing import Any, cast
 
 import numpy.typing as npt
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -101,7 +101,7 @@ class TfidfDetectorAdapter(BaseDetector):
     def predict_score(self, X: Any) -> npt.NDArray[Any]:
         X = self._validate(X)
         vectors = self._vectorizer.transform(X)
-        return self._detector.predict_score(vectors.toarray())
+        return cast(npt.NDArray[Any], self._detector.predict_score(vectors.toarray()))
 
     def _save_backend(self, path: str) -> None:
         import joblib

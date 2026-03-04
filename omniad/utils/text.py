@@ -7,7 +7,7 @@ registry for adding custom aggregation methods.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -26,23 +26,23 @@ ChunkAggregator = Callable[[npt.NDArray[Any]], npt.NDArray[Any]]
 
 def _mean_chunks(chunks: npt.NDArray[Any]) -> npt.NDArray[Any]:
     """Average all chunk embeddings."""
-    return chunks.mean(axis=0)
+    return cast(npt.NDArray[Any], chunks.mean(axis=0))
 
 
 def _max_norm_chunks(chunks: npt.NDArray[Any]) -> npt.NDArray[Any]:
     """Select chunk with highest L2 norm."""
     norms = np.linalg.norm(chunks, axis=1)
-    return chunks[norms.argmax()]
+    return cast(npt.NDArray[Any], chunks[norms.argmax()])
 
 
 def _first_chunk(chunks: npt.NDArray[Any]) -> npt.NDArray[Any]:
     """Use only the first chunk (beginning of text)."""
-    return chunks[0]
+    return cast(npt.NDArray[Any], chunks[0])
 
 
 def _last_chunk(chunks: npt.NDArray[Any]) -> npt.NDArray[Any]:
     """Use only the last chunk (end of text)."""
-    return chunks[-1]
+    return cast(npt.NDArray[Any], chunks[-1])
 
 
 # --- Registry ---

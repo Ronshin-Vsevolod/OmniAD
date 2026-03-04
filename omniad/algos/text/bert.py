@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, cast
 
 import numpy.typing as npt
 
@@ -116,7 +116,7 @@ class BertDetectorAdapter(BaseTransformersAdapter):
 
     def _score_embeddings(self, embeddings: npt.NDArray[Any]) -> npt.NDArray[Any]:
         """Score embeddings. OmniAD detector handles convention."""
-        return self._detector.predict_score(embeddings)
+        return cast(npt.NDArray[Any], self._detector.predict_score(embeddings))
 
     # --- Serialization ---
 
