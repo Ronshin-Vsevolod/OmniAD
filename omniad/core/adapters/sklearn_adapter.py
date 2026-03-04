@@ -5,10 +5,10 @@ from typing import Any, ClassVar, cast
 
 import joblib
 import numpy as np
+import numpy.typing as npt
 
 from omniad.core.base import BaseDetector
 from omniad.core.exceptions import ConfigError
-from omniad.utils.validation import validate_input
 
 
 class BaseSklearnAdapter(BaseDetector):
@@ -39,8 +39,6 @@ class BaseSklearnAdapter(BaseDetector):
         Fits the sklearn backend model.
         """
         # 1. Validate Input
-        X_valid = validate_input(X)
-
         if self._backend_cls is None:
             raise ConfigError(
                 f"Adapter {self.__class__.__name__} must define '_backend_cls'."
@@ -64,30 +62,30 @@ class BaseSklearnAdapter(BaseDetector):
 
         # 3. Initialize & Fit
         self._backend_model = self._backend_cls(**init_params)
-        self._backend_model.fit(X_valid, y)
+        self._backend_model.fit(X, y)
 
-    def predict_score(self, X: Any) -> np.ndarray[Any, Any]:
+    def predict_score(self, X: Any) -> npt.NDArray[Any]:
         """
         Predict anomaly scores using the backend model.
 
         Attempts to use 'score_samples' first, then 'decision_function'.
         Inverts scores if '_invert_score' is True.
         """
-        X_valid = validate_input(X)
+        X = self._validate(X)
 
         # Try standard sklearn methods
         scores: Any
         if hasattr(self.backend_model, "decision_function"):
-            scores = self.backend_model.decision_function(X_valid)
+            scores = self.backend_model.decision_function(X)
         elif hasattr(self.backend_model, "score_samples"):
-            scores = self.backend_model.score_samples(X_valid)
+            scores = self.backend_model.score_samples(X)
         else:
             raise ConfigError(
                 f"Backend {type(self.backend_model)} has neither "
                 "'score_samples' nor 'decision_function'."
             )
 
-        scores_arr = cast("np.ndarray[Any, Any]", np.asarray(scores))
+        scores_arr = cast("npt.NDArray[Any]", np.asarray(scores))
 
         # Handle inversion (1 is anomaly)
         if self._invert_score:

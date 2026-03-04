@@ -435,9 +435,17 @@ if isinstance(model, FeatureImportanceMixin):
 Реализация TimeSeriesMixin (оконные функции).
 Интеграция PyTorch.
 Реализация LSTM.
-Этап 3: Сложные модальности (NLP & Graph)
+Этап 3: NLP
 Реализация text: Адаптеры над Transformers.
-Реализация graph: Интеграция с PyTorch Geometric.
-Этап 4: Экосистема
-Модуль визуализации viz.
-High-Level API (Фабрики).
+Этап 4: Экосистема и Наблюдаемость (Observability)
+Цель: Сделать библиотеку удобной для отладки и анализа, унифицировать поведение уже написанных алгоритмов.
+Тотальное Логирование
+Визуализация (omniad.viz)
+Реализовать plotting_ts.py
+Расширение Миксинов
+Базовые Бенчмарки
+Этап 5: Computer Vision (CV)
+Реализация SegmentationMixin (возврат масок).
+Адаптер для 2D-изображений (ResNet/Autoencoder).
+Визуализация
+Этап 6: Сложные структуры (Graph & Audio)

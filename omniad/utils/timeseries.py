@@ -3,13 +3,14 @@ from __future__ import annotations
 from typing import Any, cast
 
 import numpy as np
+import numpy.typing as npt
 
 from omniad.core.exceptions import DataFormatError
 
 
 def create_windows(
-    data: np.ndarray[Any, Any], window_size: int, step: int = 1
-) -> np.ndarray[Any, Any]:
+    data: npt.NDArray[Any], window_size: int, step: int = 1
+) -> npt.NDArray[Any]:
     """
     Slice a 2D time series into 3D windows.
 
@@ -54,4 +55,4 @@ def create_windows(
     )
 
     # Force copy to avoid memory issues with strided views in PyTorch later
-    return cast("np.ndarray[Any, Any]", windows.copy())
+    return cast("npt.NDArray[Any]", windows.copy())

@@ -1,7 +1,6 @@
 from typing import Any
 
 import pytest
-import torch
 
 from omniad.core.exceptions import ConfigError
 from omniad.core.metrics import (
@@ -9,6 +8,8 @@ from omniad.core.metrics import (
     resolve_metric,
     reverse_lookup_metric,
 )
+
+torch = pytest.importorskip("torch", reason="torch not installed")
 
 
 def test_resolve_builtin_metrics() -> None:

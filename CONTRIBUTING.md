@@ -66,6 +66,15 @@ We adhere to a single list of parameters, compiled according to the principle of
 | **hidden_dim**    | `int`             | Size of the hidden layer / state representation              |
 | **target_cols**   | `list[int]`       | Indices of columns to predict (Forecasting mode)             |
 | **score_metric**  | `str`             | Name of the metric for anomaly scoring ('mse', 'mae', etc.)  |
+| **detector**      | `str`             | Backend detector name for embedding pipelines     |
+| **detector_kwargs** | `dict`          | Additional parameters for the backend detector    |
+| **model_name**    | `str`             | HuggingFace model identifier                      |
+| **max_length**    | `int`             | Maximum token length for transformer models       |
+| **pooling**       | `str`             | Pooling strategy for transformer output           |
+| **chunking_strategy** | `str`         | Strategy for handling long texts                  |
+| **save_weights**  | `bool`            | Whether to save model weights in archive          |
+| **max_features**  | `int`             | Maximum vocabulary size for text vectorizers      |
+| **ngram_range**   | `tuple[int,int]`  | Range of n-grams for text vectorizers             |
 
 ## 6. Naming & Registry Conventions
 

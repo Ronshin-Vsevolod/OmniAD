@@ -5,6 +5,7 @@ import os
 from typing import Any, Callable, cast
 
 import numpy as np
+import numpy.typing as npt
 
 try:
     import torch
@@ -45,6 +46,8 @@ class BaseTorchAdapter(BaseDetector):
         Optimizer learning rate.
     verbose : bool, default=False
         If True, logging loss during training.
+    score_metric : str or callable, default="mse"
+        Metric used to compute anomaly scores.
     **kwargs : Any
         Additional arguments passed to BaseDetector or stored for backend configuration.
     """
@@ -187,6 +190,10 @@ class BaseTorchAdapter(BaseDetector):
         """
         return self.score_func(X, output)
 
+    def _validate(self, X: Any) -> Any:
+        """Torch-specific: validate + convert to float32."""
+        return validate_input(X, ensure_2d=False, allow_nd=True).astype(np.float32)
+
     # --- Main Logic ---
 
     def _fit_backend(self, X: Any, y: Any | None = None) -> None:
@@ -194,18 +201,16 @@ class BaseTorchAdapter(BaseDetector):
         Generic PyTorch training loop implementation.
         """
         self._check_torch()
-        X_valid = validate_input(X, ensure_2d=False, allow_nd=True).astype(np.float32)
 
         # 1. Setup metadata
         input_dim: int
-        if X_valid.ndim > 1:
-            input_dim = X_valid.shape[-1]
+        if X.ndim > 1:
+            input_dim = X.shape[-1]
         else:
             input_dim = 1
 
         self.n_features_in_ = input_dim
         self.device = self._setup_device()
-        # *
         self._set_seed()
 
         # 2. Build Model
@@ -213,7 +218,7 @@ class BaseTorchAdapter(BaseDetector):
         self._backend_model = self.model
 
         # 3. Setup Training Infrastructure
-        dataset = TensorDataset(torch.from_numpy(X_valid))
+        dataset = TensorDataset(torch.from_numpy(X))
         loader = DataLoader(
             dataset, batch_size=self.batch_size, shuffle=True, generator=self._generator
         )
@@ -232,7 +237,7 @@ class BaseTorchAdapter(BaseDetector):
             if self.verbose:
                 logger.info(f"Epoch {epoch + 1}/{self.epochs}, Loss: {total_loss:.6f}")
 
-    def predict_score(self, X: Any) -> np.ndarray[Any, Any]:
+    def predict_score(self, X: Any) -> npt.NDArray[Any]:
         """
         Inference loop. Returns anomaly scores using _compute_anomaly_score.
         """
@@ -240,8 +245,8 @@ class BaseTorchAdapter(BaseDetector):
         if self.model is None or self.device is None:
             raise ConfigError("Model not initialized.")
 
-        X_valid = validate_input(X, ensure_2d=False, allow_nd=True).astype(np.float32)
-        dataset = TensorDataset(torch.from_numpy(X_valid))
+        X = self._validate(X)
+        dataset = TensorDataset(torch.from_numpy(X))
         loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
 
         self.model.eval()
@@ -255,7 +260,7 @@ class BaseTorchAdapter(BaseDetector):
                 batch_scores = self._compute_anomaly_score(batch_x, output)
                 scores.append(batch_scores.cpu().numpy())
 
-        return cast("np.ndarray[Any, Any]", np.concatenate(scores))
+        return cast("npt.NDArray[Any]", np.concatenate(scores))
 
     # --- Serialization ---
 

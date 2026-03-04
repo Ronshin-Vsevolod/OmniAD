@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
-import numpy as np
+import numpy.typing as npt
 
 
 class ReconstructionMixin(ABC):
@@ -12,7 +12,7 @@ class ReconstructionMixin(ABC):
     """
 
     @abstractmethod
-    def predict_expected(self, X: Any) -> np.ndarray[Any, Any]:
+    def predict_expected(self, X: Any) -> npt.NDArray[Any]:
         """
         Return the model's reconstruction or forecast for X.
 

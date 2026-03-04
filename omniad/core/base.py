@@ -52,7 +52,7 @@ class BaseDetector(ABC):
             Fitted estimator.
         """
         # 1. Validation (via utils)
-        X = validate_input(X)
+        X = self._validate(X)
 
         # 2. Seed fixing
         self._set_seed()
@@ -150,6 +150,10 @@ class BaseDetector(ABC):
         if self._backend_model is None:
             raise ModelNotFittedError("The backend model is not initialized or fitted.")
         return self._backend_model
+
+    def _validate(self, X: Any) -> Any:
+        """Default: numeric array validation."""
+        return validate_input(X)
 
     # --- SERIALIZATION (ZIP Container) ---
 

@@ -1,3 +1,7 @@
+"""
+A terrible decision. Remove this code and create a common logic at the domain level.
+"""
+
 from typing import Any
 
 import numpy as np
@@ -5,29 +9,15 @@ import pytest
 
 from omniad import get_detector
 from omniad.core.base import BaseDetector
-from omniad.registry import _DEPENDENCY_CHECKS, _REGISTRY
-from omniad.utils.deps import is_available
+from omniad.registry import _REGISTRY
 
 REGISTERED_ALGOS = list(_REGISTRY.keys())
-
-
-def _skip_if_missing(algo_name: str) -> None:
-    """Skip test if required optional dependency is not installed."""
-    entry = _REGISTRY[algo_name]
-    group = entry.get("requires")
-
-    if group is None:
-        return
-
-    package = _DEPENDENCY_CHECKS.get(group)
-    if package and not is_available(package):
-        pytest.skip(f"'{algo_name}' requires '{package}' (pip install omniad[{group}])")
 
 
 @pytest.mark.parametrize("algo_name", REGISTERED_ALGOS)  # type: ignore[misc]
 def test_api_contract(
     algo_name: str,
-    random_xy_dataset: tuple[Any, Any, Any],
+    domain_dataset: tuple[Any, Any],
 ) -> None:
     """
     Smoke Test: Verifies that any algorithm from the registry:
@@ -36,7 +26,7 @@ def test_api_contract(
     3. Predicts (predict_score, predict).
     """
 
-    X_train, X_test, _ = random_xy_dataset
+    X_train, X_test = domain_dataset
 
     model = get_detector(algo_name, contamination=0.1)
 
@@ -65,13 +55,13 @@ def test_api_contract(
 @pytest.mark.parametrize("algo_name", REGISTERED_ALGOS)  # type: ignore[misc]
 def test_save_load_cycle(
     algo_name: str,
-    random_xy_dataset: tuple[Any, Any, Any],
+    domain_dataset: tuple[Any, Any],
     tmp_path: Any,
 ) -> None:
     """
     Verifies that any algorithm supports serialization.
     """
-    X_train, X_test, _ = random_xy_dataset
+    X_train, X_test = domain_dataset
 
     model = get_detector(algo_name, contamination=0.1)
     model.fit(X_train)

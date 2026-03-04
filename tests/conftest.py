@@ -8,6 +8,27 @@ from omniad.registry import _DEPENDENCY_CHECKS, _REGISTRY
 from omniad.utils.deps import is_available
 
 
+@pytest.fixture(autouse=True)  # type: ignore[misc]
+def skip_if_dependency_missing(request: pytest.FixtureRequest) -> None:
+    """Skip parametrized tests with algo_name if dependency is missing."""
+    if "algo_name" not in request.fixturenames:
+        return
+    algo_name = request.getfixturevalue("algo_name")
+    entry = _REGISTRY.get(algo_name)
+    if not entry:
+        return
+    groups = entry.get("requires")
+    if not groups:
+        return
+    for group in groups:
+        pkg = _DEPENDENCY_CHECKS.get(group)
+        if pkg and not is_available(pkg):
+            pytest.skip(
+                f"Skipping '{algo_name}': requires '{pkg}' "
+                f"(pip install omniad[{group}])"
+            )
+
+
 @pytest.fixture(scope="session")  # type: ignore[misc]
 def random_xy_dataset() -> tuple[Any, Any, Any]:
     """
@@ -31,27 +52,33 @@ def random_xy_dataset() -> tuple[Any, Any, Any]:
     return X[:split], X[split:], y[split:]
 
 
-@pytest.fixture(autouse=True)  # type: ignore[misc]
-def skip_if_dependency_missing(request: pytest.FixtureRequest) -> None:
+@pytest.fixture(scope="session")  # type: ignore[misc]
+def text_dataset() -> tuple[list[str], list[str], np.ndarray[Any, Any]]:
     """
-    If the test is parameterized with the 'algo_name' argument, it checks
-    the dependencies for that algorithm and skips the test if necessary.
+    Synthetic text dataset.
+    Returns (train_texts, test_texts, y_test).
     """
-    if "algo_name" in request.fixturenames:
-        algo_name = request.getfixturevalue("algo_name")
-
-        entry = _REGISTRY.get(algo_name)
-        if not entry:
-            return
-
-        group = entry.get("requires")
-        if group:
-            pkg = _DEPENDENCY_CHECKS.get(group)
-            if pkg and not is_available(pkg):
-                pytest.skip(
-                    f"Skipping {algo_name}: requires '{pkg}' "
-                    f"(pip install omniad[{group}])"
-                )
+    train = [
+        "user login successful",
+        "user logout session ended",
+        "file opened successfully",
+        "connection established",
+        "normal operation completed",
+        "system reboot initiated",
+        "user login successful",
+        "file closed successfully",
+        "connection closed normally",
+        "backup completed successfully",
+    ]
+    test = [
+        "kernel panic segfault critical error",
+        "out of memory oom killer activated",
+        "disk full write failed immediately",
+        "user login successful",
+        "normal operation completed",
+    ]
+    y_test = np.array([1, 1, 1, 0, 0])
+    return train, test, y_test
 
 
 @pytest.fixture(scope="session")  # type: ignore[misc]
@@ -96,3 +123,39 @@ def deterministic_mode(request: pytest.FixtureRequest) -> Generator[None, None, 
     torch.backends.cudnn.deterministic = prev_deterministic
     torch.backends.cudnn.allow_tf32 = prev_allow_tf32
     torch.use_deterministic_algorithms(prev_strict, warn_only=True)
+
+
+def get_algo_domain(algo_name: str) -> str:
+    from omniad.registry import _REGISTRY
+
+    module_path = _REGISTRY[algo_name]["module"]
+    # omniad.algos.text.bert -> "text"
+    # omniad.algos.tabular.iforest -> "tabular"
+    parts = module_path.split(".")
+    if "algos" in parts:
+        return parts[parts.index("algos") + 1]
+    return "tabular"
+
+
+@pytest.fixture  # type: ignore[misc]
+def domain_dataset(
+    request: pytest.FixtureRequest,
+    random_xy_dataset: tuple[Any, Any, Any],
+    timeseries_dataset: tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]],
+    text_dataset: tuple[list[str], list[str], np.ndarray[Any, Any]],
+) -> tuple[Any, Any]:
+    """
+    Returns (X_train, X_test) appropriate for the algorithm's domain.
+    Falls back to tabular if algo_name is unknown.
+    """
+    callspec = getattr(request.node, "callspec", None)
+    algo_name = callspec.params.get("algo_name") if callspec else None
+    domain = get_algo_domain(algo_name)
+
+    if domain == "text":
+        train, test, _ = text_dataset
+        return train, test
+    if domain == "timeseries":
+        return timeseries_dataset
+    X_train, X_test, _ = random_xy_dataset
+    return X_train, X_test

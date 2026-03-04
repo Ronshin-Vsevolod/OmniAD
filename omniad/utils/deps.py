@@ -2,7 +2,7 @@
 Lazy dependency checking utilities.
 """
 import importlib.util
-from typing import Optional
+from typing import Union
 
 
 def is_available(package_name: str) -> bool:
@@ -12,7 +12,7 @@ def is_available(package_name: str) -> bool:
 
 
 def check_dependency(
-    group: Optional[str],
+    group: Union[list[str], str, None],
     algo_name: str,
     checks: dict[str, str],
 ) -> None:
@@ -27,14 +27,13 @@ def check_dependency(
     if group is None:
         return
 
-    package = checks.get(group)
+    groups = [group] if isinstance(group, str) else group
 
-    if package is None:
-        return
-
-    if not is_available(package):
-        raise ImportError(
-            f"Algorithm '{algo_name}' requires the '{group}' extras.\n\n"
-            f"  pip install omniad[{group}]\n\n"
-            f"Missing package: {package}"
-        )
+    for g in groups:
+        package = checks.get(g)
+        if package and not is_available(package):
+            raise ImportError(
+                f"Algorithm '{algo_name}' requires the '{g}' extras.\n\n"
+                f"  pip install omniad[{g}]\n\n"
+                f"Missing package: {package}"
+            )

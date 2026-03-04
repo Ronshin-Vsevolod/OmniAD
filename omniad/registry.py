@@ -6,7 +6,7 @@ from typing import Optional, TypedDict
 
 class RegistryEntry(TypedDict):
     module: str
-    requires: Optional[str]
+    requires: Optional[list[str]]
 
 
 _REGISTRY: dict[str, RegistryEntry] = {
@@ -16,8 +16,13 @@ _REGISTRY: dict[str, RegistryEntry] = {
     },
     "LSTM": {
         "module": "omniad.algos.timeseries.lstm",
-        "requires": "deep",
+        "requires": ["deep"],
     },
+    "BertDetector": {
+        "module": "omniad.algos.text.bert",
+        "requires": ["text", "deep"],
+    },
+    "TfidfDetector": {"module": "omniad.algos.text.tfidf", "requires": None},
 }
 
 # Mapping from group name to a main dependence.

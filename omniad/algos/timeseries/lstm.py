@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Callable, cast
 
 import numpy as np
+import numpy.typing as npt
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
@@ -11,7 +12,6 @@ from omniad.core.adapters.torch_adapter import BaseTorchAdapter
 from omniad.core.exceptions import ConfigError
 from omniad.core.mixins import ReconstructionMixin
 from omniad.utils.timeseries import create_windows
-from omniad.utils.validation import validate_input
 
 
 class LSTMModel(nn.Module):  # type: ignore[misc]
@@ -92,16 +92,14 @@ class LSTMAdapter(BaseTorchAdapter, ReconstructionMixin):
 
         return LSTMModel(input_dim, self.hidden_dim, output_dim)
 
-    def _prepare_data(self, X: Any) -> np.ndarray[Any, Any]:
+    def _prepare_data(self, X: npt.NDArray[Any]) -> npt.NDArray[Any]:
         """Convert input to 3D windows if needed."""
-        X_valid = validate_input(X)
-
         # If already 3D (batch_size, sequence_length, features)
-        if X_valid.ndim == 3:
-            return X_valid
+        if X.ndim == 3:
+            return X
 
         # If 2D (time_steps, features), create windows
-        return create_windows(X_valid, self.window_size)
+        return create_windows(X, self.window_size)
 
     # --- Overrides to handle Time-Series Logic ---
 
@@ -112,7 +110,7 @@ class LSTMAdapter(BaseTorchAdapter, ReconstructionMixin):
         X_windows = self._prepare_data(X)
         super()._fit_backend(X_windows, y)
 
-    def predict_score(self, X: Any) -> np.ndarray[Any, Any]:
+    def predict_score(self, X: Any) -> npt.NDArray[Any]:
         """Override to handle window creation before prediction."""
         self._check_torch()
         if self.model is None or self.device is None:
@@ -121,13 +119,14 @@ class LSTMAdapter(BaseTorchAdapter, ReconstructionMixin):
         model = self.model
         device = self.device
 
+        X = self._validate(X)
         X_windows = self._prepare_data(X).astype(np.float32)
 
         dataset = TensorDataset(torch.from_numpy(X_windows))
         loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
 
         model.eval()
-        scores_list: list[np.ndarray[Any, Any]] = []
+        scores_list: list[npt.NDArray[Any]] = []
 
         with torch.no_grad():
             for (batch_x,) in loader:
@@ -142,7 +141,7 @@ class LSTMAdapter(BaseTorchAdapter, ReconstructionMixin):
                 batch_scores = self.score_func(target, output)
                 scores_list.append(batch_scores.cpu().numpy())
 
-        return cast("np.ndarray[Any, Any]", np.concatenate(scores_list))
+        return cast("npt.NDArray[Any]", np.concatenate(scores_list))
 
     def _train_step(
         self,
@@ -172,12 +171,13 @@ class LSTMAdapter(BaseTorchAdapter, ReconstructionMixin):
 
     # --- Mixin Implementation ---
 
-    def predict_expected(self, X: Any) -> np.ndarray[Any, Any]:
+    def predict_expected(self, X: Any) -> npt.NDArray[Any]:
         """Return the model's prediction."""
         self._check_torch()
         if self.model is None or self.device is None:
             raise ConfigError("Model not initialized.")
 
+        X = self._validate(X)
         X_windows = self._prepare_data(X).astype(np.float32)
 
         dataset = TensorDataset(torch.from_numpy(X_windows))
@@ -191,4 +191,4 @@ class LSTMAdapter(BaseTorchAdapter, ReconstructionMixin):
                 output = self.model(batch_x)
                 results.append(output.cpu().numpy())
 
-        return cast("np.ndarray[Any, Any]", np.concatenate(results))
+        return cast("npt.NDArray[Any]", np.concatenate(results))
