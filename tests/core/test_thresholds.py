@@ -166,8 +166,9 @@ def test_reverse_lookup_builtin() -> None:
 def test_reverse_lookup_custom() -> None:
     """reverse_lookup_threshold finds name for registered custom strategy."""
 
-    def my_custom(scores: npt.NDArray[Any], contamination: float) -> float:
-        return cast(float, scores.median())
+    def my_custom(scores: npt.NDArray[Any], contamination: float) -> npt.NDArray[Any]:
+        threshold = cast("npt.NDArray[Any]", scores).median()
+        return threshold
 
     register_threshold("my_custom", my_custom)
     name = reverse_lookup_threshold(my_custom)
