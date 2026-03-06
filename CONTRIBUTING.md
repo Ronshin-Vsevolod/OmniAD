@@ -76,6 +76,18 @@ We adhere to a single list of parameters, compiled according to the principle of
 | **max_features**  | `int`             | Maximum vocabulary size for text vectorizers      |
 | **ngram_range**   | `tuple[int,int]`  | Range of n-grams for text vectorizers             |
 
+### Configuration Aliases
+
+| **Alias**       | **Purpose**                                                                 | **Domain**      |
+|-----------------|-----------------------------------------------------------------------------|-----------------|
+| **fast**        | Priority on speed. Sacrifices accuracy for faster inference and training. Suitable for Real-Time applications. | all             |
+| **accurate**    | Priority on quality. Uses maximum depth and size. Intended for offline analysis. | all             |
+| **default**     | The golden middle ground. Used when no alias is specified.                  | all             |
+| **debug**       | Minimal possible configuration. Only for checking that the code doesn't crash. | all             |
+| **multilingual**| Support for multiple languages.                                             | NLP             |
+| **short**       | Small window size.                                                          | Time-Series     |
+| **long**        | Large window size.                                                          | Time-Series     |
+
 ## 6. Naming & Registry Conventions
 
 To keep the factory (`get_detector`) working, we follow strict naming rules:

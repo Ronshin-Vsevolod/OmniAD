@@ -1,6 +1,7 @@
 from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 from sklearn.ensemble import IsolationForest as SklearnIF
 
 from omniad import get_detector
@@ -77,7 +78,7 @@ def test_iforest_determinism(random_xy_dataset: tuple[Any, Any, Any]) -> None:
     """
     X_train, X_test, _ = random_xy_dataset
 
-    def make_and_score(seed: int) -> np.ndarray[Any, Any]:
+    def make_and_score(seed: int) -> npt.NDArray[Any]:
         model = get_detector("IsolationForest", random_state=seed, n_jobs=1)
         model.fit(X_train)
         return model.predict_score(X_test)

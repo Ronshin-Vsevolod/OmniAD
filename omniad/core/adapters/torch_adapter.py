@@ -226,6 +226,13 @@ class BaseTorchAdapter(BaseDetector):
         optimizer = self._configure_optimizer(self.model)
         criterion = self._configure_criterion()
 
+        logger.debug("Device: %s", self.device)
+        logger.debug(
+            "Model: %s | params=%d",
+            self.model.__class__.__name__,
+            sum(p.numel() for p in self.model.parameters()),
+        )
+
         # 4. Training Loop
         self.model.train()
         for epoch in range(self.epochs):
@@ -234,8 +241,9 @@ class BaseTorchAdapter(BaseDetector):
                 loss = self._train_step(batch, self.model, criterion, optimizer)
                 total_loss += loss.item()
 
-            if self.verbose:
-                logger.info(f"Epoch {epoch + 1}/{self.epochs}, Loss: {total_loss:.6f}")
+            logger.info("Epoch %d/%d | loss=%.6f", epoch + 1, self.epochs, total_loss)
+
+        self._cached_train_scores = self.predict_score(X)
 
     def predict_score(self, X: Any) -> npt.NDArray[Any]:
         """
@@ -246,6 +254,9 @@ class BaseTorchAdapter(BaseDetector):
             raise ConfigError("Model not initialized.")
 
         X = self._validate(X)
+
+        logger.debug("predict_score: n_samples=%d", len(X))
+
         dataset = TensorDataset(torch.from_numpy(X))
         loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
 

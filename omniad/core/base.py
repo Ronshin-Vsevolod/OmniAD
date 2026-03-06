@@ -1,19 +1,24 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import tempfile
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Callable
 
 import joblib
 import numpy as np
 import numpy.typing as npt
 
+from omniad.core._logging import _ensure_verbose_handler, log_phase
 from omniad.core.exceptions import ConfigError, ModelNotFittedError
 from omniad.core.metrics import reverse_lookup_metric
+from omniad.utils.thresholds import resolve_threshold
 from omniad.utils.validation import validate_input
+
+logger = logging.getLogger(__name__)
 
 
 class BaseDetector(ABC):
@@ -28,11 +33,20 @@ class BaseDetector(ABC):
         on the scores.
     """
 
-    def __init__(self, contamination: float = 0.1, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        contamination: float = 0.1,
+        threshold_strategy: str | Callable[..., float] | float | None = "quantile",
+        verbose: int = 0,
+        **kwargs: Any,
+    ) -> None:
         self.contamination = contamination
+        self.threshold_strategy = threshold_strategy
+        self.verbose = verbose
         self._backend_model: Any = None
         self.threshold_: float | None = None
         self._is_fitted = False
+        self._cached_train_scores: npt.NDArray[Any] | None = None
 
     def fit(self, X: Any, y: Any | None = None) -> BaseDetector:
         """
@@ -51,22 +65,43 @@ class BaseDetector(ABC):
         self : object
             Fitted estimator.
         """
-        # 1. Validation (via utils)
+        _ensure_verbose_handler(self.verbose)
+
         X = self._validate(X)
 
-        # 2. Seed fixing
         self._set_seed()
 
-        # 3. Backend fitting
-        self._fit_backend(X, y)
-
-        # 4. Threshold calculation
-        # We calculate scores on training data to determine the cut-off point
-        train_scores = self.predict_score(X)
-        self.threshold_ = float(np.quantile(train_scores, 1 - self.contamination))
+        with log_phase(logger, "fit") as ctx:
+            self._fit_backend(X, y)
+            self._calibrate_threshold(X)
+            if self.threshold_ is not None:
+                ctx["threshold"] = f"{self.threshold_:.6f}"
 
         self._is_fitted = True
         return self
+
+    def _calibrate_threshold(self, X: Any) -> None:
+        """
+        Calculate threshold based on threshold_strategy.
+        """
+        strategy = self.threshold_strategy
+
+        if strategy is None:
+            self.threshold_ = None
+            return
+
+        if isinstance(strategy, (int, float)):
+            self.threshold_ = float(strategy)
+            return
+
+        if self._cached_train_scores is not None:
+            train_scores = self._cached_train_scores
+            self._cached_train_scores = None
+        else:
+            train_scores = self.predict_score(X)
+
+        threshold_fn = resolve_threshold(strategy)
+        self.threshold_ = float(threshold_fn(train_scores, self.contamination))
 
     @abstractmethod
     def _fit_backend(self, X: Any, y: Any | None = None) -> None:
@@ -76,7 +111,7 @@ class BaseDetector(ABC):
         pass
 
     @abstractmethod
-    def predict_score(self, X: Any) -> np.ndarray[Any, Any]:
+    def predict_score(self, X: Any) -> npt.NDArray[Any]:
         """
         Predict the anomaly score of X of the input samples.
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any, ClassVar, cast
 
@@ -9,6 +10,8 @@ import numpy.typing as npt
 
 from omniad.core.base import BaseDetector
 from omniad.core.exceptions import ConfigError
+
+logger = logging.getLogger(__name__)
 
 
 class BaseSklearnAdapter(BaseDetector):
@@ -50,6 +53,7 @@ class BaseSklearnAdapter(BaseDetector):
 
         # Remove special keys that shouldn't go to backend
         init_params.pop("backend_options", None)
+        init_params.pop("threshold_strategy", None)
 
         # Apply mapping: keys in self.__dict__ -> keys expected by backend
         for local_name, backend_name in self._param_mapping.items():
@@ -60,9 +64,15 @@ class BaseSklearnAdapter(BaseDetector):
         # Explicit backend options override everything
         init_params.update(self.backend_options)
 
+        logger.debug("Params: %s", init_params)
+
         # 3. Initialize & Fit
         self._backend_model = self._backend_cls(**init_params)
         self._backend_model.fit(X, y)
+
+        self._cached_train_scores = self.predict_score(X)
+
+        logger.debug("Backend fitted: %s", self._backend_cls.__name__)
 
     def predict_score(self, X: Any) -> npt.NDArray[Any]:
         """
@@ -72,6 +82,8 @@ class BaseSklearnAdapter(BaseDetector):
         Inverts scores if '_invert_score' is True.
         """
         X = self._validate(X)
+
+        logger.debug("predict_score: n_samples=%d", len(X))
 
         # Try standard sklearn methods
         scores: Any

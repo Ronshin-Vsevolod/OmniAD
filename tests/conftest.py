@@ -150,7 +150,7 @@ def domain_dataset(
     """
     callspec = getattr(request.node, "callspec", None)
     algo_name = callspec.params.get("algo_name") if callspec else None
-    domain = get_algo_domain(algo_name)
+    domain = get_algo_domain(algo_name) if algo_name else "tabular"
 
     if domain == "text":
         train, test, _ = text_dataset

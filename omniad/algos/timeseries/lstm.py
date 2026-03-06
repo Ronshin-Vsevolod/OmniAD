@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, Callable, cast
 
 import numpy as np
@@ -12,6 +13,8 @@ from omniad.core.adapters.torch_adapter import BaseTorchAdapter
 from omniad.core.exceptions import ConfigError
 from omniad.core.mixins import ReconstructionMixin
 from omniad.utils.timeseries import create_windows
+
+logger = logging.getLogger(__name__)
 
 
 class LSTMModel(nn.Module):  # type: ignore[misc]
@@ -108,6 +111,7 @@ class LSTMAdapter(BaseTorchAdapter, ReconstructionMixin):
         # We manually prepare windows here because BaseTorchAdapter expects
         # data ready for TensorDataset.
         X_windows = self._prepare_data(X)
+        logger.debug("Windows: %s → %s", X.shape, X_windows.shape)
         super()._fit_backend(X_windows, y)
 
     def predict_score(self, X: Any) -> npt.NDArray[Any]:
@@ -121,6 +125,8 @@ class LSTMAdapter(BaseTorchAdapter, ReconstructionMixin):
 
         X = self._validate(X)
         X_windows = self._prepare_data(X).astype(np.float32)
+
+        logger.debug("predict_score: windows=%d", len(X_windows))
 
         dataset = TensorDataset(torch.from_numpy(X_windows))
         loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)

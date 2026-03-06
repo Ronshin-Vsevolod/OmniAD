@@ -1,6 +1,7 @@
 from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 
 pytest.importorskip("torch", reason="torch not installed")
@@ -125,7 +126,7 @@ def test_bert_determinism(
     """
     train_texts, _, _ = text_dataset
 
-    def make_and_score(seed: int) -> np.ndarray[Any, Any]:
+    def make_and_score(seed: int) -> npt.NDArray[Any]:
         model = get_detector(
             "BertDetector",
             model_name=TINY_MODEL,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any, cast
 
@@ -8,6 +9,8 @@ import numpy.typing as npt
 from omniad.core.adapters.transformers_adapter import BaseTransformersAdapter
 from omniad.core.exceptions import ConfigError
 from omniad.utils.detectors import build_detector, get_available_detectors
+
+logger = logging.getLogger(__name__)
 
 
 class BertDetectorAdapter(BaseTransformersAdapter):
@@ -105,6 +108,10 @@ class BertDetectorAdapter(BaseTransformersAdapter):
 
     def _fit_on_embeddings(self, embeddings: npt.NDArray[Any], y: Any = None) -> None:
         """Fit anomaly detector on BERT embeddings."""
+        logger.debug(
+            "Embeddings shape: %s, detector: %s", embeddings.shape, self.detector
+        )
+
         self._detector = build_detector(
             name=self.detector,
             caller="BertDetector",

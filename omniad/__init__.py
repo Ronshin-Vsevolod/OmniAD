@@ -3,10 +3,32 @@ from typing import Any, cast
 
 from omniad.core.base import BaseDetector
 from omniad.core.exceptions import ConfigError
+from omniad.presets import PRESETS
 from omniad.registry import _DEPENDENCY_CHECKS, _REGISTRY
 from omniad.utils.deps import check_dependency
 
 __version__ = "0.1.0"
+
+
+def _apply_presets(algo_name: str, kwargs: dict[str, Any]) -> dict[str, Any]:
+    """
+    Apply configuration presets if 'preset' argument is present.
+    """
+    if "preset" not in kwargs:
+        return kwargs
+
+    preset_name = kwargs.pop("preset")
+
+    if algo_name not in PRESETS or preset_name not in PRESETS[algo_name]:
+        available = list(PRESETS.get(algo_name, {}).keys())
+        raise ConfigError(
+            f"Unknown preset '{preset_name}' for {algo_name}. Available: {available}"
+        )
+
+    preset_params = PRESETS[algo_name][preset_name].copy()
+    preset_params.update(kwargs)
+
+    return preset_params
 
 
 def get_detector(name: str, **kwargs: Any) -> BaseDetector:
@@ -41,6 +63,8 @@ def get_detector(name: str, **kwargs: Any) -> BaseDetector:
             f"Unknown algorithm: '{name}'. Available algorithms: {available}"
         )
 
+    final_kwargs = _apply_presets(name, kwargs)
+
     entry = _REGISTRY[name]
 
     check_dependency(
@@ -69,4 +93,4 @@ def get_detector(name: str, **kwargs: Any) -> BaseDetector:
             "Check naming conventions."
         )
 
-    return cast(BaseDetector, model_class(**kwargs))
+    return cast(BaseDetector, model_class(**final_kwargs))

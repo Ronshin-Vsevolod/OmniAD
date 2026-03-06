@@ -109,9 +109,6 @@ class BaseTransformersAdapter(BaseDetector):
         self._transformer: Any = None
         self._torch_device: Any = None
 
-        # Embedding cache: used to avoid double inference during fit()
-        self._cached_embeddings: npt.NDArray[Any] | None = None
-
     # --- Validation ---
 
     def _validate(self, X: Any) -> Any:
@@ -140,6 +137,7 @@ class BaseTransformersAdapter(BaseDetector):
 
     def _init_transformer(self) -> None:
         """Lazy-load tokenizer and model. Idempotent."""
+        logger.debug("Loading '%s' on %s", self.model_name, self._torch_device)
         if self._tokenizer is not None:
             return
 
@@ -234,6 +232,7 @@ class BaseTransformersAdapter(BaseDetector):
         -------
         embeddings : np.ndarray of shape (len(texts), hidden_dim)
         """
+        logger.debug("Embedding %d texts, batch_size=%d", len(texts), self.batch_size)
         if self._chunk_fn is None:
             # Simple: batch embed with truncation
             parts: list[npt.NDArray[Any]] = []
@@ -253,14 +252,14 @@ class BaseTransformersAdapter(BaseDetector):
         The cache avoids a second BERT inference pass when
         BaseDetector.fit() calls predict_score(X) immediately after.
         """
+        logger.debug(
+            "Transformer: %s, chunking=%s", self.model_name, self.chunking_strategy
+        )
         self._check_transformers()
         self._init_transformer()
 
         embeddings = self._embed(X)
         self._fit_on_embeddings(embeddings, y)
-
-        # Cache for the upcoming predict_score() call from BaseDetector.fit()
-        self._cached_embeddings = embeddings
 
     def predict_score(self, X: Any) -> npt.NDArray[Any]:
         """
@@ -277,15 +276,11 @@ class BaseTransformersAdapter(BaseDetector):
             Higher values indicate more anomalous texts.
         """
         X = self._validate(X)
+        logger.debug("predict_score: n_samples=%d", len(X))
 
-        # Use cached embeddings from _fit_backend if available
-        if self._cached_embeddings is not None:
-            embeddings = self._cached_embeddings
-            self._cached_embeddings = None
-        else:
-            if self._transformer is None:
-                self._init_transformer()
-            embeddings = self._embed(X)
+        if self._transformer is None:
+            self._init_transformer()
+        embeddings = self._embed(X)
 
         return self._score_embeddings(embeddings)
 
@@ -329,7 +324,6 @@ class BaseTransformersAdapter(BaseDetector):
 
     def _save_backend(self, path: str) -> None:
         """Save transformer config + detector. Optionally save weights."""
-        self._cached_embeddings = None
 
         chunking = self.chunking_strategy
         if callable(chunking):

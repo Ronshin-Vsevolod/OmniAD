@@ -1,6 +1,7 @@
 from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 from sklearn.ensemble import IsolationForest as SklearnIF
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -97,7 +98,7 @@ def test_tfidf_determinism(
     """
     train_texts, _, _ = text_dataset
 
-    def make_and_score(seed: int) -> np.ndarray[Any, Any]:
+    def make_and_score(seed: int) -> npt.NDArray[Any]:
         model = get_detector("TfidfDetector", random_state=seed)
         model.fit(train_texts)
         return model.predict_score(train_texts)

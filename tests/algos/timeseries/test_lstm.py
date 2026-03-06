@@ -1,6 +1,7 @@
 from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 
 from omniad import get_detector
@@ -95,7 +96,7 @@ def test_lstm_determinism(
     """
     X_train, _ = timeseries_dataset
 
-    def make_and_score(seed: int) -> np.ndarray[Any, Any]:
+    def make_and_score(seed: int) -> npt.NDArray[Any]:
         model = get_detector(
             "LSTM",
             window_size=5,

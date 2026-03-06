@@ -82,6 +82,13 @@ class TfidfDetectorAdapter(BaseDetector):
         return validate_text(X)
 
     def _fit_backend(self, X: Any, y: Any | None = None) -> None:
+        logger.debug(
+            "Vectorizer: max_features=%d, ngram_range=%s",
+            self.max_features,
+            self.ngram_range,
+        )
+        logger.debug("Detector: %s", self.detector)
+
         self._vectorizer = TfidfVectorizer(
             max_features=self.max_features,
             ngram_range=self.ngram_range,
