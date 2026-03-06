@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -167,7 +167,7 @@ def test_reverse_lookup_custom() -> None:
     """reverse_lookup_threshold finds name for registered custom strategy."""
 
     def my_custom(scores: npt.NDArray[Any], contamination: float) -> float:
-        return float(scores.median())
+        return cast(float, scores.median())
 
     register_threshold("my_custom", my_custom)
     name = reverse_lookup_threshold(my_custom)
