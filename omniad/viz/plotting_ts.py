@@ -22,13 +22,13 @@ def _find_anomaly_intervals(mask: npt.NDArray[Any]) -> list[tuple[int, int]]:
         return []
 
     # Pad with False to detect edges correctly
-    extended_mask = np.concatenate(([False], mask, [False]))
+    extended_mask = np.pad(mask, pad_width=1, mode="constant", constant_values=False)
     diff = np.diff(extended_mask.astype(int))
 
     starts = np.where(diff == 1)[0]
     ends = np.where(diff == -1)[0] - 1
 
-    return list(zip(starts, ends))
+    return [(int(s), int(e)) for s, e in zip(starts, ends)]
 
 
 def plot_timeseries_anomalies(
