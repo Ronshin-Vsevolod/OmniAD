@@ -178,23 +178,29 @@ class LSTMAdapter(BaseTorchAdapter, ReconstructionMixin):
     # --- Mixin Implementation ---
 
     def predict_expected(self, X: Any) -> npt.NDArray[Any]:
-        """Return the model's prediction."""
+        """
+        Return the model's prediction/reconstruction.
+        """
         self._check_torch()
         if self.model is None or self.device is None:
-            raise ConfigError("Model not initialized.")
+            raise ConfigError("Model not initialized. Call fit() first.")
 
-        X = self._validate(X)
+        # Local variables for MyPy narrowing
+        model = self.model
+        device = self.device
+
         X_windows = self._prepare_data(X).astype(np.float32)
 
         dataset = TensorDataset(torch.from_numpy(X_windows))
         loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
 
-        self.model.eval()
-        results = []
+        model.eval()
+        results: list[npt.NDArray[Any]] = []
+
         with torch.no_grad():
             for (batch_x,) in loader:
-                batch_x = batch_x.to(self.device)
-                output = self.model(batch_x)
+                batch_x = batch_x.to(device)
+                output = model(batch_x)
                 results.append(output.cpu().numpy())
 
         return cast("npt.NDArray[Any]", np.concatenate(results))

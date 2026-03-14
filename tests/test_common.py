@@ -9,6 +9,7 @@ import pytest
 
 from omniad import get_detector
 from omniad.core.base import BaseDetector
+from omniad.core.mixins import FeatureImportanceMixin, ReconstructionMixin
 from omniad.registry import _REGISTRY
 
 REGISTERED_ALGOS = list(_REGISTRY.keys())
@@ -83,3 +84,35 @@ def test_save_load_cycle(
         err_msg=f"Scores mismatch after save/load for {algo_name}",
     )
     assert loaded_model.threshold_ == model.threshold_
+
+
+@pytest.mark.parametrize("algo_name", REGISTERED_ALGOS)  # type: ignore[misc]
+def test_mixins_contract(algo_name: str, domain_dataset: tuple[Any, Any]) -> None:
+    """
+    Automatic verification of all declared mixins.
+    If an algorithm claims to support “feature importance,” we verify that it's
+    telling the truth.
+    """
+    X_train, X_test = domain_dataset
+
+    model = get_detector(algo_name, contamination=0.1)
+    model.fit(X_train)
+
+    # 1. Feature Importance Check
+    if isinstance(model, FeatureImportanceMixin):
+        if X_train.ndim == 2:
+            importances = model.get_feature_importances(X_test)
+
+            assert isinstance(importances, np.ndarray)
+            assert importances.shape == (X_train.shape[1],)
+            assert np.isfinite(importances).all()
+        else:
+            from omniad.core.exceptions import DataFormatError
+
+            with pytest.raises(DataFormatError):
+                model.get_feature_importances(X_test)
+
+    # 2. Reconstruction Check
+    if isinstance(model, ReconstructionMixin):
+        recon = model.predict_expected(X_test)
+        assert isinstance(recon, np.ndarray)

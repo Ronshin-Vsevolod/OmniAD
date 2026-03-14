@@ -5,9 +5,10 @@ from typing import Any, ClassVar
 from sklearn.ensemble import IsolationForest
 
 from omniad.core.adapters.sklearn_adapter import BaseSklearnAdapter
+from omniad.core.mixins import FeatureImportanceMixin
 
 
-class IsolationForestAdapter(BaseSklearnAdapter):
+class IsolationForestAdapter(BaseSklearnAdapter, FeatureImportanceMixin):
     """
     Wrapper for Scikit-learn Isolation Forest.
 

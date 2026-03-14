@@ -5,6 +5,7 @@ import numpy.typing as npt
 from sklearn.ensemble import IsolationForest as SklearnIF
 
 from omniad import get_detector
+from omniad.core.mixins import FeatureImportanceMixin
 
 
 def test_iforest_parity(random_xy_dataset: tuple[Any, Any, Any]) -> None:
@@ -97,3 +98,33 @@ def test_iforest_determinism(random_xy_dataset: tuple[Any, Any, Any]) -> None:
     assert not np.allclose(
         scores_a, scores_c
     ), "Different random_state should produce different scores"
+
+
+def test_iforest_feature_importance_logic() -> None:
+    """
+    D. Domain test
+    Let's verify that Permutation Importance actually identifies important features.
+    """
+    np.random.seed(42)
+    n_samples = 500
+
+    # Feature 0: Informative (clearly distinguishes between normal values and anomalies)
+    f0_normal = np.random.normal(0, 1, n_samples)
+    f0_anom = np.random.normal(10, 1, 50)
+    f0 = np.concatenate([f0_normal, f0_anom])
+
+    # Feature 1: Noise (uniform distribution)
+    f1 = np.random.uniform(-5, 5, n_samples + 50)
+
+    X = np.column_stack([f0, f1])
+
+    model = get_detector("IsolationForest", n_estimators=100, random_state=42)
+    model.fit(X)
+
+    assert isinstance(model, FeatureImportanceMixin)
+
+    imp = model.get_feature_importances(X, n_repeats=5, random_state=42)
+
+    assert (
+        imp[0] > imp[1]
+    ), f"Informative feature should have higher importance. Got {imp}"
