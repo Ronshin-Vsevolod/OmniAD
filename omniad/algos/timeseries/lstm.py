@@ -111,7 +111,7 @@ class LSTMAdapter(BaseTorchAdapter, ReconstructionMixin):
         # We manually prepare windows here because BaseTorchAdapter expects
         # data ready for TensorDataset.
         X_windows = self._prepare_data(X)
-        logger.debug("Windows: %s → %s", X.shape, X_windows.shape)
+        logger.debug("Windows: %s -> %s", X.shape, X_windows.shape)
         super()._fit_backend(X_windows, y)
 
     def predict_score(self, X: Any) -> npt.NDArray[Any]:

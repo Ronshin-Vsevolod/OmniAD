@@ -27,7 +27,7 @@ def _to_numpy(X: Any) -> npt.NDArray[Any]:
 
     Returns
     -------
-    arr : np.ndarray
+    arr : npt.NDArray[Any]
         Converted numpy array.
 
     Raises
@@ -98,7 +98,7 @@ def validate_input(X: Any, **kwargs: Any) -> npt.NDArray[Any]:
 
     Returns
     -------
-    X_valid : np.ndarray
+    X_valid : npt.NDArray[Any]
         Validated 2D array.
 
     Raises
@@ -143,7 +143,7 @@ def validate_text(X: Any) -> list[str]:
     DataFormatError
         If input is not a valid list of strings.
     """
-    # Support np.ndarray of strings (e.g. from pandas .values)
+    # Support npt.NDArray[Any] of strings (e.g. from pandas .values)
     if isinstance(X, np.ndarray):
         if X.dtype.kind not in ("U", "S", "O"):
             raise DataFormatError(f"Expected array of strings, got dtype={X.dtype}")
@@ -171,3 +171,40 @@ def validate_text(X: Any) -> list[str]:
         )
 
     return X
+
+
+def validate_image(X: Any) -> npt.NDArray[Any]:
+    """
+    Validate image input for CV anomaly detectors.
+
+    Expects (N, C, H, W) with C in {1, 3}.
+    Auto-normalizes uint8 [0, 255] to float32 [0, 1].
+
+    Parameters
+    ----------
+    X : Any
+        Expected: (N, C, H, W), C in {1, 3}, values in [0, 1].
+
+    Returns
+    -------
+    X_valid : npt.NDArray[Any] of shape (N, C, H, W), dtype float32.
+    """
+    if isinstance(X, np.ndarray):
+        X_arr = X
+    else:
+        X_arr = np.asarray(X)
+
+    if X_arr.ndim != 4:
+        raise DataFormatError(f"Image input must be 4D (N, C, H, W), got {X_arr.ndim}D")
+
+    channels = X_arr.shape[1]
+    if channels not in (1, 3):
+        raise DataFormatError(
+            f"Expected 1 or 3 channels at dim=1, got {channels}. "
+            f"Shape: {X_arr.shape}. Expected (N, C, H, W)."
+        )
+
+    if X_arr.dtype == np.uint8:
+        return X_arr.astype(np.float32) / 255.0
+
+    return X_arr.astype(np.float32)

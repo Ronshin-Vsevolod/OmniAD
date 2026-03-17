@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from omniad.viz.plotting_cv import plot_anomaly_heatmap
 from omniad.viz.plotting_tabular import plot_anomaly_scores, plot_scatter_2d
 from omniad.viz.plotting_ts import plot_timeseries_anomalies
 
@@ -36,4 +37,13 @@ def test_plot_ts_anomalies_mismatch(tmp_path: Path) -> None:
     save_path = tmp_path / "ts.png"
 
     plot_timeseries_anomalies(X, scores, threshold=0.8, save_path=str(save_path))
+    assert save_path.exists()
+
+
+def test_plot_anomaly_heatmap(tmp_path: Path) -> None:
+    image = np.random.rand(32, 32, 3).astype(np.float32)
+    anomaly_map = np.random.rand(32, 32).astype(np.float32)
+    save_path = tmp_path / "heatmap.png"
+
+    plot_anomaly_heatmap(image, anomaly_map, save_path=str(save_path))
     assert save_path.exists()

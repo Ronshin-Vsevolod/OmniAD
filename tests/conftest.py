@@ -2,6 +2,7 @@ from collections.abc import Generator
 from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 
 from omniad.registry import _DEPENDENCY_CHECKS, _REGISTRY
@@ -96,6 +97,15 @@ def timeseries_dataset() -> tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]]:
     return X[:100], X[100:]
 
 
+@pytest.fixture(scope="session")  # type: ignore[misc]
+def image_dataset() -> tuple[npt.NDArray[Any], npt.NDArray[Any]]:
+    """Synthetic image dataset: 10 train + 5 test, 3-channel 32x32."""
+    rng = np.random.default_rng(42)
+    X_train = rng.random((10, 3, 32, 32)).astype(np.float32)
+    X_test = rng.random((5, 3, 32, 32)).astype(np.float32)
+    return X_train, X_test
+
+
 @pytest.fixture  # type: ignore[misc]
 def deterministic_mode(request: pytest.FixtureRequest) -> Generator[None, None, None]:
     if "deterministic" not in request.keywords:
@@ -143,6 +153,7 @@ def domain_dataset(
     random_xy_dataset: tuple[Any, Any, Any],
     timeseries_dataset: tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]],
     text_dataset: tuple[list[str], list[str], np.ndarray[Any, Any]],
+    image_dataset: tuple[Any, Any],
 ) -> tuple[Any, Any]:
     """
     Returns (X_train, X_test) appropriate for the algorithm's domain.
@@ -157,5 +168,7 @@ def domain_dataset(
         return train, test
     if domain == "timeseries":
         return timeseries_dataset
+    if domain == "cv":
+        return image_dataset
     X_train, X_test, _ = random_xy_dataset
     return X_train, X_test

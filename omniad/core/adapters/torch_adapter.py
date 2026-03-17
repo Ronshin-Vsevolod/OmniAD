@@ -59,7 +59,7 @@ class BaseTorchAdapter(BaseDetector):
         batch_size: int = 32,
         epochs: int = 10,
         learning_rate: float = 1e-3,
-        verbose: bool = False,
+        verbose: int | bool = False,
         score_metric: str | Callable[..., Any] = "mse",
         **kwargs: Any,
     ) -> None:
@@ -194,6 +194,17 @@ class BaseTorchAdapter(BaseDetector):
         """Torch-specific: validate + convert to float32."""
         return validate_input(X, ensure_2d=False, allow_nd=True).astype(np.float32)
 
+    def _extract_input_dim(self, X: Any) -> int:
+        """
+        Extract model input dimension from data.
+
+        Default: last dimension (works for 2D tabular and 3D timeseries).
+        Override for CV (channels at dim=1).
+        """
+        if X.ndim > 1:
+            return int(X.shape[-1])
+        return 1
+
     # --- Main Logic ---
 
     def _fit_backend(self, X: Any, y: Any | None = None) -> None:
@@ -204,10 +215,7 @@ class BaseTorchAdapter(BaseDetector):
 
         # 1. Setup metadata
         input_dim: int
-        if X.ndim > 1:
-            input_dim = X.shape[-1]
-        else:
-            input_dim = 1
+        input_dim = self._extract_input_dim(X)
 
         self.n_features_in_ = input_dim
         self.device = self._setup_device()

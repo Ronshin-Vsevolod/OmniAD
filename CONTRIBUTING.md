@@ -60,11 +60,11 @@ We adhere to a single list of parameters, compiled according to the principle of
 | **verbose**       | `int` or `bool`| Verbosity level of output                            |
 | **window_size**   | `int`          | Size of the sliding window for time series data      |
 | **batch_size**    | `int`             | Number of samples per gradient update (Deep Learning)        |
-| **epochs**        | `int`             | Number of epochs to train the model                          |
+| **epochs**        | `int`             | Number of epochs to train the model               |
 | **learning_rate** | `float`           | Optimization step size (default usually 1e-3 or 1e-4)        |
-| **device**        | `str`             | Computation device: "cpu", "cuda", or "auto"                 |
-| **hidden_dim**    | `int`             | Size of the hidden layer / state representation              |
-| **target_cols**   | `list[int]`       | Indices of columns to predict (Forecasting mode)             |
+| **device**        | `str`             | Computation device: "cpu", "cuda", or "auto"      |
+| **hidden_dim**    | `int`             | Size of the hidden layer / state representation   |
+| **target_cols**   | `list[int]`       | Indices of columns to predict (Forecasting mode)  |
 | **score_metric**  | `str`             | Name of the metric for anomaly scoring ('mse', 'mae', etc.)  |
 | **detector**      | `str`             | Backend detector name for embedding pipelines     |
 | **detector_kwargs** | `dict`          | Additional parameters for the backend detector    |
@@ -75,6 +75,7 @@ We adhere to a single list of parameters, compiled according to the principle of
 | **save_weights**  | `bool`            | Whether to save model weights in archive          |
 | **max_features**  | `int`             | Maximum vocabulary size for text vectorizers      |
 | **ngram_range**   | `tuple[int,int]`  | Range of n-grams for text vectorizers             |
+| **model_fn**      | `callable`        | Factory: model_fn(input_dim) -> nn.Module         |
 
 ### Configuration Aliases
 

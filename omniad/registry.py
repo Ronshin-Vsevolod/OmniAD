@@ -23,6 +23,10 @@ _REGISTRY: dict[str, RegistryEntry] = {
         "requires": ["text", "deep"],
     },
     "TfidfDetector": {"module": "omniad.algos.text.tfidf", "requires": None},
+    "ConvAutoencoder": {
+        "module": "omniad.algos.cv.autoencoder",
+        "requires": ["deep"],
+    },
 }
 
 # Mapping from group name to a main dependence.

@@ -151,3 +151,29 @@ class FeatureImportanceMixin:
             importances = importances / total
 
         return importances
+
+
+class SegmentationMixin(ABC):
+    """
+    Mixin for models that can produce pixel/spatial-level anomaly maps.
+
+    Typical use: CV defect detection, where the model localizes
+    anomalous regions within an image.
+    """
+
+    @abstractmethod
+    def predict_map(self, X: Any) -> npt.NDArray[Any]:
+        """
+        Predict spatial anomaly map.
+
+        Parameters
+        ----------
+        X : Any
+            Input data (e.g., images of shape (N, C, H, W)).
+
+        Returns
+        -------
+        anomaly_map : np.ndarray
+            Per-pixel anomaly scores. Shape depends on domain:
+            - CV: (N, H, W) — higher values indicate defects.
+        """

@@ -37,4 +37,22 @@ PRESETS: dict[str, dict[str, dict[str, Any]]] = {
             "window_size": 5,
         }
     },
+    "ConvAutoencoder": {
+        "debug": {
+            "hidden_dim": 8,
+            "epochs": 1,
+            "batch_size": 4,
+        },
+        "fast": {
+            "hidden_dim": 16,
+            "epochs": 20,
+            "batch_size": 64,
+        },
+        "accurate": {
+            "hidden_dim": 64,
+            "epochs": 100,
+            "batch_size": 32,
+            "learning_rate": 1e-4,
+        },
+    },
 }
