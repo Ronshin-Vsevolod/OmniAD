@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=82.0.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,10 +8,10 @@ version = "0.1.0"
 description = "Universal Anomaly Detection Library"
 requires-python = ">=3.9"
 dependencies = [
-    "numpy>=1.21",
-    "scikit-learn>=1.0",
-    "scipy>=1.7",
-    "joblib>=1.1",
+    "numpy>=2.0.2",
+    "scikit-learn>=1.6.1",
+    "scipy>=1.13.1",
+    "joblib>=1.5.3",
 ]
 
 [tool.ruff]
@@ -53,33 +53,33 @@ markers = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0",
-    "mypy>=1.0",
-    "ruff>=0.1",
-    "pre-commit>=3.0",
-    "pytest-cov>=4.0",
-    "psutil>=6.0.0",
-    "pandas>=1.3",
+    "pytest>=8.4.2",
+    "mypy>=1.19.1",
+    "ruff>=0.15.10",
+    "pre-commit>=4.3.0",
+    "pytest-cov>=7.1.0",
+    "psutil>=7.2.2",
+    "pandas>=2.3.3",
 ]
 
 deep = [
-    "torch>=2.0",
+    "torch>=2.8.0",
     "torchvision",
 ]
 
 text = [
-    "transformers>=4.0",
+    "transformers>=4.57.6",
     # "nltk", # maybe
 ]
 
 graph = [
-    "pygod>=1.0",
-    "torch_geometric>=2.3",
+    "pygod>=1.1.0",
+    "torch_geometric>=2.6.1",
 ]
 
 viz = [
-    "matplotlib>=3.5",
-    "seaborn>=0.12",
+    "matplotlib>=3.9.4",
+    "seaborn>=0.13.2",
 ]
 
 full = [
