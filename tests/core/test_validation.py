@@ -10,13 +10,13 @@ def test_validation_accepts_pandas() -> None:
     df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
 
     # 1. DataFrame -> Numpy
-    X_out = validate_input(df)
+    X_out = validate_input(df, {"to_numpy", "require_2d", "reject_nan"})
     assert isinstance(X_out, np.ndarray)
     assert X_out.shape == (3, 2)
 
     # 2. Series -> Numpy (col vector)
     series = pd.Series([1, 2, 3])
-    X_out_s = validate_input(series)
+    X_out_s = validate_input(series, {"to_numpy", "require_2d", "reject_nan"})
     assert isinstance(X_out_s, np.ndarray)
     assert X_out_s.shape == (3, 1)  # Must do reshape(-1, 1)
 
@@ -28,4 +28,4 @@ def test_validation_rejects_bad_pandas() -> None:
     from omniad.core.exceptions import DataFormatError
 
     with pytest.raises(DataFormatError):
-        validate_input(df)
+        validate_input(df, {"to_numpy", "require_2d", "reject_nan"})

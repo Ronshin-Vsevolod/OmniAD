@@ -30,7 +30,6 @@ from omniad.utils.text import (
     reverse_lookup_chunking,
     reverse_lookup_pooling,
 )
-from omniad.utils.validation import validate_text
 
 try:
     import torch
@@ -111,9 +110,9 @@ class BaseTransformersAdapter(BaseDetector):
 
     # --- Validation ---
 
-    def _validate(self, X: Any) -> Any:
-        """Text-specific: validate List[str]."""
-        return validate_text(X)
+    @classmethod
+    def get_validation_rules(cls) -> set[str]:
+        return {"domain_text"}
 
     # --- Transformer Lifecycle ---
 

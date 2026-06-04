@@ -27,6 +27,7 @@ class IsolationForestAdapter(BaseSklearnAdapter, FeatureImportanceMixin):
 
     _backend_cls: ClassVar[type | None] = IsolationForest
     _param_mapping: ClassVar[dict[str, str]] = {}
+    _accepts_sparse: ClassVar[bool] = True
 
     def __init__(
         self,
@@ -47,3 +48,9 @@ class IsolationForestAdapter(BaseSklearnAdapter, FeatureImportanceMixin):
             random_state=random_state,
             **kwargs,
         )
+
+    @classmethod
+    def get_validation_rules(cls) -> set[str]:
+        rules = super().get_validation_rules()
+        rules.discard("reject_sparse")
+        return rules

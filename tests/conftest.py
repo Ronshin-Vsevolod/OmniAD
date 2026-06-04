@@ -99,10 +99,10 @@ def timeseries_dataset() -> tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]]:
 
 @pytest.fixture(scope="session")  # type: ignore[misc]
 def image_dataset() -> tuple[npt.NDArray[Any], npt.NDArray[Any]]:
-    """Synthetic image dataset: 10 train + 5 test, 3-channel 32x32."""
+    """Synthetic image dataset: 100 train + 50 test, 3-channel 32x32."""
     rng = np.random.default_rng(42)
-    X_train = rng.random((10, 3, 32, 32)).astype(np.float32)
-    X_test = rng.random((5, 3, 32, 32)).astype(np.float32)
+    X_train = rng.random((100, 3, 32, 32)).astype(np.float32)
+    X_test = rng.random((50, 3, 32, 32)).astype(np.float32)
     return X_train, X_test
 
 

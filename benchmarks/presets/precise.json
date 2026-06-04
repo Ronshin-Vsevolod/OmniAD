@@ -1,0 +1,7 @@
+{
+    "preset": "precise",
+    "description": "Publication-grade.",
+    "n_samples": [100000, 5000],
+    "n_runs": [20, 3],
+    "min_total_seconds": 30.0
+}

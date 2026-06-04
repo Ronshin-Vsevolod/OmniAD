@@ -110,7 +110,7 @@ class FeatureImportanceMixin:
                 "Permutation importance requires predict_score() to be implemented."
             )
 
-        X_arr = validate_input(X, ensure_2d=False, allow_nd=True)
+        X_arr = validate_input(X, {"to_numpy", "require_2d", "reject_nan"})
         if X_arr.ndim != 2:
             raise DataFormatError(
                 f"Permutation importance supports only 2D tabular data. "

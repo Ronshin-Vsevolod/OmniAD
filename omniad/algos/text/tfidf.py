@@ -10,7 +10,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from omniad.core.base import BaseDetector
 from omniad.core.exceptions import ConfigError
 from omniad.utils.detectors import build_detector, get_available_detectors
-from omniad.utils.validation import validate_text
 
 logger = logging.getLogger(__name__)
 
@@ -77,8 +76,14 @@ class TfidfDetectorAdapter(BaseDetector):
 
         super().__init__(contamination=contamination, **kwargs)
 
+    @classmethod
+    def get_validation_rules(cls) -> set[str]:
+        return {"domain_text"}
+
     def _validate(self, X: Any) -> Any:
         """Validate that input is a list of non-empty strings."""
+        from omniad.utils.validation import validate_text
+
         return validate_text(X)
 
     def _fit_backend(self, X: Any, y: Any | None = None) -> None:
@@ -102,13 +107,13 @@ class TfidfDetectorAdapter(BaseDetector):
             random_state=self.random_state,
             **(self.detector_kwargs or {}),
         )
-        self._detector.fit(vectors.toarray())
+        self._detector.fit(vectors)
         self._backend_model = self._detector.backend_model
 
     def predict_score(self, X: Any) -> npt.NDArray[Any]:
         X = self._validate(X)
         vectors = self._vectorizer.transform(X)
-        return cast(npt.NDArray[Any], self._detector.predict_score(vectors.toarray()))
+        return cast(npt.NDArray[Any], self._detector.predict_score(vectors))
 
     def _save_backend(self, path: str) -> None:
         import joblib

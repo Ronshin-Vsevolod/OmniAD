@@ -7,7 +7,6 @@ import numpy as np
 import numpy.typing as npt
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, TensorDataset
 
 from omniad.core.adapters.torch_adapter import BaseTorchAdapter
 from omniad.core.exceptions import ConfigError
@@ -120,24 +119,17 @@ class LSTMAdapter(BaseTorchAdapter, ReconstructionMixin):
         if self.model is None or self.device is None:
             raise ConfigError("Model not initialized. Call fit() first.")
 
-        model = self.model
-        device = self.device
-
         X = self._validate(X)
         X_windows = self._prepare_data(X).astype(np.float32)
 
         logger.debug("predict_score: windows=%d", len(X_windows))
 
-        dataset = TensorDataset(torch.from_numpy(X_windows))
-        loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
+        self.model.eval()
+        scores: list[npt.NDArray[Any]] = []
 
-        model.eval()
-        scores_list: list[npt.NDArray[Any]] = []
-
-        with torch.no_grad():
-            for (batch_x,) in loader:
-                batch_x = batch_x.to(device)
-                output = model(batch_x)
+        with torch.inference_mode():
+            for batch_x in self._iter_inference_batches(X_windows):
+                output = self.model(batch_x)
 
                 if self.target_cols is not None:
                     target = batch_x[:, -1, self.target_cols]
@@ -145,9 +137,9 @@ class LSTMAdapter(BaseTorchAdapter, ReconstructionMixin):
                     target = batch_x[:, -1, :]
 
                 batch_scores = self.score_func(target, output)
-                scores_list.append(batch_scores.cpu().numpy())
+                scores.append(batch_scores.cpu().numpy())
 
-        return cast("npt.NDArray[Any]", np.concatenate(scores_list))
+        return cast("npt.NDArray[Any]", np.concatenate(scores))
 
     def _train_step(
         self,
@@ -185,22 +177,14 @@ class LSTMAdapter(BaseTorchAdapter, ReconstructionMixin):
         if self.model is None or self.device is None:
             raise ConfigError("Model not initialized. Call fit() first.")
 
-        # Local variables for MyPy narrowing
-        model = self.model
-        device = self.device
-
         X_windows = self._prepare_data(X).astype(np.float32)
 
-        dataset = TensorDataset(torch.from_numpy(X_windows))
-        loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
-
-        model.eval()
+        self.model.eval()
         results: list[npt.NDArray[Any]] = []
 
-        with torch.no_grad():
-            for (batch_x,) in loader:
-                batch_x = batch_x.to(device)
-                output = model(batch_x)
+        with torch.inference_mode():
+            for batch_x in self._iter_inference_batches(X_windows):
+                output = self.model(batch_x)
                 results.append(output.cpu().numpy())
 
         return cast("npt.NDArray[Any]", np.concatenate(results))

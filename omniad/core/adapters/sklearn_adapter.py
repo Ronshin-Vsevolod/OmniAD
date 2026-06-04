@@ -47,6 +47,8 @@ class BaseSklearnAdapter(BaseDetector):
                 f"Adapter {self.__class__.__name__} must define '_backend_cls'."
             )
 
+        X = self._validate(X)
+
         # 2. Prepare Parameters
         # Priority: backend_options > kwargs > mapped params > defaults
         init_params = self.kwargs.copy()
@@ -83,7 +85,8 @@ class BaseSklearnAdapter(BaseDetector):
         """
         X = self._validate(X)
 
-        logger.debug("predict_score: n_samples=%d", len(X))
+        n = X.shape[0] if hasattr(X, "shape") else len(X)
+        logger.debug("predict_score: n_samples=%d", n)
 
         # Try standard sklearn methods
         scores: Any

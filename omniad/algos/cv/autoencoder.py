@@ -12,7 +12,6 @@ from torch.utils.data import DataLoader, TensorDataset
 from omniad.core.adapters.torch_adapter import BaseTorchAdapter
 from omniad.core.exceptions import ConfigError
 from omniad.core.mixins import ReconstructionMixin, SegmentationMixin
-from omniad.utils.validation import validate_image
 
 logger = logging.getLogger(__name__)
 
@@ -145,9 +144,9 @@ class ConvAutoencoderAdapter(BaseTorchAdapter, ReconstructionMixin, Segmentation
 
     # --- Domain-specific overrides ---
 
-    def _validate(self, X: Any) -> Any:
-        """CV-specific: validate (N, C, H, W) images."""
-        return validate_image(X)
+    @classmethod
+    def get_validation_rules(cls) -> set[str]:
+        return {"domain_image"}
 
     def _extract_input_dim(self, X: Any) -> int:
         """For CV: input dimension = number of channels."""

@@ -1,0 +1,7 @@
+{
+    "preset": "fast",
+    "description": "Quick check.",
+    "n_samples": [10000, 1000],
+    "n_runs": [5, 1],
+    "min_total_seconds": 2.0
+}

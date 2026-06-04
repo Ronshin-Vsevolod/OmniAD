@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Callable, cast
+from collections.abc import Iterator
+from typing import Any, Callable, ClassVar, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -51,6 +52,8 @@ class BaseTorchAdapter(BaseDetector):
     **kwargs : Any
         Additional arguments passed to BaseDetector or stored for backend configuration.
     """
+
+    _accepted_dims: ClassVar[tuple[int, ...] | None] = (2, 3)
 
     def __init__(
         self,
@@ -173,7 +176,6 @@ class BaseTorchAdapter(BaseDetector):
         # Default Autoencoder logic: Target is Input (Unsupervised)
         output = model(X)
         loss = criterion(output, X)
-
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -190,9 +192,19 @@ class BaseTorchAdapter(BaseDetector):
         """
         return self.score_func(X, output)
 
+    @classmethod
+    def get_validation_rules(cls) -> set[str]:
+        rules = super().get_validation_rules()
+        rules.discard("require_2d")
+        rules.add("require_float32")
+        return rules
+
     def _validate(self, X: Any) -> Any:
-        """Torch-specific: validate + convert to float32."""
-        return validate_input(X, ensure_2d=False, allow_nd=True).astype(np.float32)
+        """Torch-specific validation."""
+        return cast(
+            "npt.NDArray[Any]",
+            validate_input(X, self.get_validation_rules()),
+        )
 
     def _extract_input_dim(self, X: Any) -> int:
         """
@@ -205,6 +217,19 @@ class BaseTorchAdapter(BaseDetector):
             return int(X.shape[-1])
         return 1
 
+    def _iter_inference_batches(
+        self,
+        X: np.ndarray[Any, Any],
+    ) -> Iterator[torch.Tensor]:
+        """Yield inference batches without DataLoader overhead."""
+        self._check_torch()
+        if self.device is None:
+            raise ConfigError("Model not initialized.")
+
+        X_tensor = torch.from_numpy(X)
+        for i in range(0, len(X), self.batch_size):
+            yield X_tensor[i : i + self.batch_size].to(self.device)
+
     # --- Main Logic ---
 
     def _fit_backend(self, X: Any, y: Any | None = None) -> None:
@@ -214,6 +239,7 @@ class BaseTorchAdapter(BaseDetector):
         self._check_torch()
 
         # 1. Setup metadata
+        X = self._validate(X)
         input_dim: int
         input_dim = self._extract_input_dim(X)
 
@@ -263,19 +289,13 @@ class BaseTorchAdapter(BaseDetector):
 
         X = self._validate(X)
 
-        logger.debug("predict_score: n_samples=%d", len(X))
-
-        dataset = TensorDataset(torch.from_numpy(X))
-        loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
-
-        self.model.eval()
+        model = self.model
+        model.eval()
         scores = []
 
-        with torch.no_grad():
-            for (batch_x,) in loader:
-                batch_x = batch_x.to(self.device)
-                output = self.model(batch_x)
-
+        with torch.inference_mode():
+            for batch_x in self._iter_inference_batches(X):
+                output = model(batch_x)
                 batch_scores = self._compute_anomaly_score(batch_x, output)
                 scores.append(batch_scores.cpu().numpy())
 

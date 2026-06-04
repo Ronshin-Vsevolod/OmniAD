@@ -186,9 +186,32 @@ class BaseDetector(ABC):
             raise ModelNotFittedError("The backend model is not initialized or fitted.")
         return self._backend_model
 
+    @classmethod
+    def get_validation_rules(cls) -> set[str]:
+        """
+        Declare validation requirements for this detector.
+
+        Rules are applied by validate_input in the globally defined
+        safe order (_VALIDATION_ORDER). Subclasses override this
+        method using super() + set.add / set.discard.
+
+        Returns
+        -------
+        rules : set[str]
+            Rule names from _VALIDATION_REGISTRY.
+        """
+        return {"to_numpy", "reject_sparse", "require_2d", "reject_nan"}
+
     def _validate(self, X: Any) -> Any:
-        """Default: numeric array validation."""
-        return validate_input(X)
+        """
+        Validate and coerce input data for this detector.
+
+        Called in fit() and may be called in predict_score()
+        of concrete adapters. Override only when post-processing
+        is needed after validation (e.g. dtype cast).
+        Always call super()._validate(X) first in that case.
+        """
+        return validate_input(X, rules=self.get_validation_rules())
 
     # --- SERIALIZATION (ZIP Container) ---
 
