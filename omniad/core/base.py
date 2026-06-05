@@ -15,6 +15,7 @@ import numpy.typing as npt
 from omniad.core._logging import _ensure_verbose_handler, log_phase
 from omniad.core.exceptions import ConfigError, ModelNotFittedError
 from omniad.core.metrics import reverse_lookup_metric
+from omniad.utils.errors import backend_boundary
 from omniad.utils.thresholds import resolve_threshold
 from omniad.utils.validation import validate_input
 
@@ -72,7 +73,9 @@ class BaseDetector(ABC):
         self._set_seed()
 
         with log_phase(logger, "fit") as ctx:
-            self._fit_backend(X, y)
+            with backend_boundary(self.__class__.__name__, phase="fit"):
+                self._fit_backend(X, y)
+
             self._calibrate_threshold(X)
             if self.threshold_ is not None:
                 ctx["threshold"] = f"{self.threshold_:.6f}"
@@ -215,7 +218,7 @@ class BaseDetector(ABC):
 
     # --- SERIALIZATION (ZIP Container) ---
 
-    def save(self, filepath: str) -> None:  # *
+    def save(self, filepath: str) -> None:
         """
         Save the model to a ZIP archive.
 
@@ -247,7 +250,8 @@ class BaseDetector(ABC):
             # 2. Backend (Native save)
             backend_path = os.path.join(tmp_dir, "backend")
             os.makedirs(backend_path)
-            self._save_backend(backend_path)
+            with backend_boundary(self.__class__.__name__, phase="save"):
+                self._save_backend(backend_path)
 
             # 3. Wrapper Attributes (Scalers, configs, etc.)
             # We make a copy and remove the heavy backend model to avoid pickling it
@@ -299,7 +303,8 @@ class BaseDetector(ABC):
 
             # 2. Restore Backend
             backend_path = os.path.join(tmp_dir, "backend")
-            self._load_backend(backend_path)
+            with backend_boundary(self.__class__.__name__, phase="load"):
+                self._load_backend(backend_path)
 
             self._is_fitted = True
             return self

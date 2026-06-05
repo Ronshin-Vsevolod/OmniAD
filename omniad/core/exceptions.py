@@ -20,3 +20,15 @@ class ConfigError(AnomalyLibError):
     """Called when parameters are configured incorrectly."""
 
     pass
+
+
+class BackendError(AnomalyLibError):
+    """
+    Failure inside a third-party backend.
+
+    Raised when sklearn, PyTorch, HuggingFace, or another backend
+    throws an exception that is not already represented by an
+    OmniAD-specific exception.
+    """
+
+    pass
