@@ -82,7 +82,7 @@ viz = [
     "seaborn>=0.12",
 ]
 
-full = [
+all = [
     "omniad[deep,text,graph,viz]"
 ]
 

@@ -62,7 +62,7 @@ def _to_numpy(X: Any) -> npt.NDArray[Any]:
     import scipy.sparse as sp
 
     if sp.issparse(X):
-        return X
+        return cast("npt.NDArray[Any]", X)
 
     if _is_pandas_object(X):
         if hasattr(X, "to_numpy"):
@@ -184,9 +184,9 @@ def _rule_require_float32(X: Any) -> npt.NDArray[Any]:
     """Cast to float32 when needed."""
     try:
         if isinstance(X, np.ndarray) and X.dtype == np.float32:
-            return X
+            return cast("npt.NDArray[Any]", X)
 
-        return X.astype(np.float32)
+        return cast("npt.NDArray[Any]", X.astype(np.float32))
 
     except (AttributeError, ValueError) as e:
         raise DataFormatError(
@@ -244,8 +244,8 @@ def _rule_domain_image(X: Any) -> npt.NDArray[Any]:
             f"Shape: {X.shape}. Expected (N, C, H, W)."
         )
     if X.dtype == np.uint8:
-        return X.astype(np.float32) / 255.0
-    return X
+        return cast("npt.NDArray[Any]", X.astype(np.float32) / 255.0)
+    return cast("npt.NDArray[Any]", X)
 
 
 #  --- Registry & execution order ---

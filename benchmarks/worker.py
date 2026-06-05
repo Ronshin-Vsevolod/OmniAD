@@ -29,7 +29,6 @@ import traceback
 from typing import Any, cast
 
 import numpy as np
-import numpy.typing as npt
 
 from benchmarks._utils import (
     CPUMemoryMonitor,
@@ -323,10 +322,10 @@ def run_overhead(config: dict[str, Any]) -> dict[str, Any]:
 
     else:
 
-        def omniad_target() -> npt.NDArray[Any]:
+        def omniad_target() -> Any:
             return omniad_model.predict_score(X)
 
-        def native_target() -> npt.NDArray[Any]:
+        def native_target() -> Any:
             return native_predict(X)
 
     # --- Internal memory probe ---
