@@ -1,7 +1,7 @@
 # OmniAD: Universal Anomaly Detection Library
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![CI](https://github.com/yourusername/omniad/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/omniad/actions)
+[![CI](https://github.com/Ronshin-Vsevolod/omniad/actions/workflows/ci.yml/badge.svg)](https://github.com/Ronshin-Vsevolod/omniad/actions)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
 
@@ -23,9 +23,9 @@ The Anomaly Detection ecosystem is fragmented:
 
 ## 🚀 Installation
 
-OmniAD's core is lightweight. Heavy frameworks are loaded lazily only when requested.
+OmniAD`s core is lightweight. Heavy frameworks are loaded lazily only when requested.
 
-'''bash
+```bash
 # Base installation (Tabular models, Scikit-learn backend)
 pip install omniad
 
@@ -34,7 +34,7 @@ pip install "omniad[deep]"    # PyTorch for Time-Series & CV
 pip install "omniad[text]"    # HuggingFace Transformers for NLP
 pip install "omniad[viz]"     # Matplotlib/Seaborn for visualization
 pip install "omniad[all]"     # Everything
-'''
+```
 
 *Note on NLP Models:* Some specific HuggingFace models may require additional tokenizer backends (like `sentencepiece`). HuggingFace will prompt you to install them if needed.
 
@@ -44,7 +44,7 @@ pip install "omniad[all]"     # Everything
 No matter the domain or backend, the workflow remains identical.
 
 **1. Tabular Data (Scikit-Learn Backend)**
-'''python
+```python
 import numpy as np
 from omniad import get_detector
 
@@ -55,40 +55,40 @@ model.fit(X_train)
 
 scores = model.predict_score(X_train)  # Raw anomaly scores
 labels = model.predict(X_train)        # Binary labels (0=Normal, 1=Anomaly)
-'''
+```
 
 **2. Time-Series (PyTorch Backend)**
 OmniAD automatically handles 2D to 3D sliding window transformations.
-'''python
-# 'window_size' is automatically processed by the adapter
+```python
+# `window_size` is automatically processed by the adapter
 model = get_detector("LSTM", window_size=50, epochs=10, device="cuda")
 model.fit(ts_data)
-'''
+```
 
 **3. NLP / Text (HuggingFace Backend)**
 OmniAD manages tokenization, embeddings, and chunking under the hood.
-'''python
+```python
 logs = ["User login successful", "FATAL: Null pointer dereference"]
 
-# Use presets ('fast') to automatically load lightweight models like bert-tiny
+# Use presets (`fast`) to automatically load lightweight models like bert-tiny
 model = get_detector("BertDetector", preset="fast", chunking_strategy="max")
 model.fit(logs)
-'''
+```
 
 ### Serialization & MLOps Readiness
 Save complex, multi-backend models into a single deployable file. Perfect for MLflow.
-'''python
+```python
 # Saves metadata, scalers, and PyTorch/Sklearn weights into one container
 model.save("my_detector.zip")
 
 loaded_model = get_detector("LSTM").load("my_detector.zip")
-'''
+```
 
 ## 🔬 Explainability & Visualization (Mixins)
 
 OmniAD uses Mixins to expose advanced features cleanly.
 
-'''python
+```python
 from omniad.core.mixins import FeatureImportanceMixin, ReconstructionMixin
 from omniad.viz import plot_timeseries_anomalies
 
@@ -100,7 +100,7 @@ if isinstance(model, FeatureImportanceMixin):
 if isinstance(model, ReconstructionMixin):
     expected_signal = model.predict_expected(X)
     plot_timeseries_anomalies(X, scores, model.threshold_, reconstruction=expected_signal)
-'''
+```
 
 ## ⚡ Benchmarks & Zero-Overhead Guarantee
 
@@ -114,23 +114,23 @@ Our isolated benchmark suite profiles algorithms across three dimensions:
 *Example Overhead:* For fast tabular models, the absolute latency overhead is strictly kept under `2ms`. For heavy deep-learning pipelines, throughput overhead is strictly within `2-5%`.
 
 To run benchmarks yourself:
-'''bash
+```bash
 python -m benchmarks.overhead.run --preset fast
-'''
+```
 
 ## 🏗 Architecture Overview
 
 OmniAD is built using a layered "Onion" architecture to strictly separate mathematical logic, data validation, and backend integrations.
 
-'''text
+```text
 omniad/
 ├── core/         # L1: Strict contracts (BaseDetector, Mixins) and L1.5 Library Templates
 ├── algos/        # L2: Concrete algorithm wrappers grouped by domain
 ├── utils/        # L3: Declarative validation, dependency checks, and domain helpers
 └── viz/          # L4: Optional plotting module (lazy-loaded)
-'''
+```
 
 For a deep dive into how algorithms are implemented and how to add your own, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
-**License:** MIT License (or your chosen license)
+**License:** Apache License
