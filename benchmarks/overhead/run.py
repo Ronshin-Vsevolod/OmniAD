@@ -126,7 +126,7 @@ def _dataset_available(domain: str, name: str) -> bool:
     """Check if a real dataset .npz exists (synthetic is always available)."""
     if name == "synthetic":
         return True
-    return (DATA_DIR / domain / f"{name}.npz").exists()
+    return bool((DATA_DIR / domain / f"{name}.npz").exists())
 
 
 def run_overhead(
