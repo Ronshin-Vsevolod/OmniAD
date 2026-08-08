@@ -279,26 +279,20 @@ class BaseTorchAdapter(BaseDetector):
 
         self._cached_train_scores = self.predict_score(X)
 
-    def predict_score(self, X: Any) -> npt.NDArray[Any]:
-        """
-        Inference loop. Returns anomaly scores using _compute_anomaly_score.
-        """
+    def _predict_score_backend(self, X: npt.NDArray[Any]) -> npt.NDArray[Any]:
+        """Run batched inference and score via `_compute_anomaly_score()`."""
         self._check_torch()
         if self.model is None or self.device is None:
             raise ConfigError("Model not initialized.")
 
-        X = self._validate(X)
-
         model = self.model
         model.eval()
         scores = []
-
         with torch.inference_mode():
             for batch_x in self._iter_inference_batches(X):
                 output = model(batch_x)
                 batch_scores = self._compute_anomaly_score(batch_x, output)
                 scores.append(batch_scores.cpu().numpy())
-
         return cast("npt.NDArray[Any]", np.concatenate(scores))
 
     # --- Serialization ---

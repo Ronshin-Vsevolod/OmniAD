@@ -30,6 +30,11 @@ PRESETS: dict[str, dict[str, dict[str, Any]]] = {
             "n_jobs": -1,
         },
     },
+    "HalfSpaceTrees": {
+        "fast": {"n_trees": 10, "window_size": 100},
+        "accurate": {"n_trees": 50, "window_size": 500},
+        "debug": {"n_trees": 3, "window_size": 20},
+    },
     "LSTM": {
         "debug": {
             "epochs": 1,

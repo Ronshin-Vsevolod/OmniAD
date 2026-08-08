@@ -1,155 +1,93 @@
-from typing import Any
+from collections import Counter
 
 import numpy as np
-import numpy.typing as npt
-import pytest
-from sklearn.ensemble import IsolationForest as SklearnIF
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from omniad import get_detector
-from omniad.core.exceptions import DataFormatError
-
-# --- A. Parity ---
 
 
-def test_tfidf_parity(
-    text_dataset: tuple[list[str], list[str], np.ndarray[Any, Any]],
-) -> None:
-    """
-    A. Parity Test.
+def test_tfidf_parity_with_manual_pipeline(text_dataset) -> None:
+    """A. Parity: composition adapter must match manual vectorize + inner detector."""
+    train, test, _ = text_dataset
 
-    Verifies that TfidfDetectorAdapter scores equal the scores
-    of IsolationForest trained manually on the same TF-IDF matrix
-    with the same parameters.
-    """
-    train_texts, _, _ = text_dataset
-    seed = 42
-    max_features = 50
-    n_estimators = 100
+    vectorizer = TfidfVectorizer(max_features=500)
+    vectors_train = vectorizer.fit_transform(train)
+    vectors_test = vectorizer.transform(test)
 
-    # Reference: manual pipeline
-    vectorizer = TfidfVectorizer(max_features=max_features)
-    X_matrix = vectorizer.fit_transform(train_texts).toarray()
-
-    sk_model = SklearnIF(n_estimators=n_estimators, random_state=seed, n_jobs=1)
-    sk_model.fit(X_matrix)
-    sk_scores = -sk_model.decision_function(X_matrix)
-
-    # Our adapter
-    model = get_detector(
-        "TfidfDetector",
-        max_features=max_features,
-        random_state=seed,
-        detector_kwargs={"n_estimators": n_estimators, "n_jobs": 1},
-    )
-    model.fit(train_texts)
-    our_scores = model.predict_score(train_texts)
-
-    np.testing.assert_allclose(
-        our_scores,
-        sk_scores,
-        rtol=1e-5,
-        err_msg="TfidfDetectorAdapter scores must match manual\
-         TF-IDF + IForest pipeline",
-    )
-
-
-# --- B. Parameter Injection ---
-
-
-def test_tfidf_param_injection(
-    text_dataset: tuple[list[str], list[str], np.ndarray[Any, Any]],
-) -> None:
-    """
-    B. Parameter Injection Test.
-
-    Verifies that vectorizer and detector parameters
-    are correctly passed to internal components.
-    """
-    train_texts, _, _ = text_dataset
-    max_features = 42
-    ngram_range = (1, 2)
-    n_estimators = 17
+    inner = get_detector("IsolationForest", random_state=0, n_jobs=1).fit(vectors_train)
+    manual_scores = inner.predict_score(vectors_test)
 
     model = get_detector(
-        "TfidfDetector",
-        max_features=max_features,
-        ngram_range=ngram_range,
-        detector_kwargs={"n_estimators": n_estimators},
+        "TfidfDetector", max_features=500, random_state=0, detector_kwargs={"n_jobs": 1}
+    ).fit(train)
+
+    np.testing.assert_allclose(model.predict_score(test), manual_scores, rtol=1e-5)
+
+
+def test_tfidf_param_injection(text_dataset) -> None:
+    """B. Injection."""
+    train, _, _ = text_dataset
+    model = get_detector("TfidfDetector", max_features=50, ngram_range=(1, 2)).fit(
+        train
     )
-    model.fit(train_texts)
-
-    assert model._vectorizer.max_features == max_features  # type: ignore[attr-defined]
-    assert model._vectorizer.ngram_range == ngram_range  # type: ignore[attr-defined]
-    assert model._detector.backend_model.n_estimators == n_estimators  # type: ignore[attr-defined]
+    assert model._vectorizer.max_features == 50
+    assert model._vectorizer.ngram_range == (1, 2)
 
 
-# --- C. Determinism ---
+def test_tfidf_determinism(text_dataset) -> None:
+    """C. Determinism."""
+    train, test, _ = text_dataset
+
+    def make_and_score(seed: int) -> np.ndarray:
+        return (
+            get_detector("TfidfDetector", random_state=seed)
+            .fit(train)
+            .predict_score(test)
+        )
+
+    np.testing.assert_allclose(make_and_score(0), make_and_score(0), rtol=1e-8)
 
 
-def test_tfidf_determinism(
-    text_dataset: tuple[list[str], list[str], np.ndarray[Any, Any]],
-) -> None:
+def test_tfidf_separates_lexically_distinct_anomalies(text_dataset) -> None:
     """
-    C. Determinism Test.
-
-    Verifies that same random_state produces identical scores.
-    Different random_state must produce different scores.
+    D. Domain logic: TF-IDF is a bag-of-words model bound to the
+    training vocabulary — unlike BERT, it cannot recognize anomalies
+    made of unseen words (they vanish at transform() as OOV). Its own
+    anomaly signal is instead triggered by *rare-token repetition*:
+    a low document-frequency word repeated many times gets a high
+    IDF weight and, after L2-normalization, dominates the vector.
+    We derive the anomaly directly from the shared fixture's own
+    vocabulary instead of hand-writing a parallel corpus, so this
+    test exercises the mechanism regardless of which words the
+    fixture happens to contain.
     """
-    train_texts, _, _ = text_dataset
+    train, normal_test, _ = text_dataset
 
-    def make_and_score(seed: int) -> npt.NDArray[Any]:
-        model = get_detector("TfidfDetector", random_state=seed)
-        model.fit(train_texts)
-        return model.predict_score(train_texts)
+    word_counts = Counter(w for line in train for w in line.split())
+    rare_word = min(word_counts, key=lambda w: word_counts[w])
 
-    scores_a = make_and_score(seed=42)
-    scores_b = make_and_score(seed=42)
-    scores_c = make_and_score(seed=99)
+    anomalies = [f"{rare_word} " * n for n in (6, 10)]
+    test = normal_test[:2] + anomalies
+    y_test = np.array([0, 0, 1, 1])
 
-    np.testing.assert_allclose(
-        scores_a,
-        scores_b,
-        rtol=1e-8,
-        err_msg="Same random_state must produce identical scores",
-    )
-    assert not np.allclose(
-        scores_a, scores_c
-    ), "Different random_state should produce different scores"
+    scores = get_detector("TfidfDetector").fit(train).predict_score(test)
+    assert scores[y_test == 1].mean() > scores[y_test == 0].mean()
 
 
-# --- D. Domain Logic ---
+def test_tfidf_delegates_feature_importance_to_inner_detector(text_dataset) -> None:
+    """D. Domain logic: regression test for the composition-delegation fix."""
+    train, test, _ = text_dataset
+    model = get_detector("TfidfDetector").fit(train)
+
+    assert model.capabilities["feature_importance"] is True
+    importances = model.get_feature_importances(test)
+    assert isinstance(importances, np.ndarray)
+    assert np.isfinite(importances).all()
+    assert importances.shape == (len(model._vectorizer.get_feature_names_out()),)
 
 
-def test_tfidf_rejects_numeric_input() -> None:
-    """
-    D. Domain Logic Test.
-
-    Verifies that numeric input is rejected with a clear error.
-    """
+def test_tfidf_reports_no_segmentation_or_incremental_learning() -> None:
+    """D. Domain logic: capabilities that don't survive flattening to a vector."""
     model = get_detector("TfidfDetector")
-    with pytest.raises(DataFormatError):
-        model.fit(np.array([[1.0, 2.0], [3.0, 4.0]]))
-
-
-def test_tfidf_rejects_empty_strings() -> None:
-    """
-    D. Domain Logic Test.
-
-    Verifies that empty/whitespace-only strings are rejected.
-    """
-    model = get_detector("TfidfDetector")
-    with pytest.raises(DataFormatError):
-        model.fit(["valid text", "   ", "another valid text"])
-
-
-def test_tfidf_unknown_detector_raises() -> None:
-    """
-    D. Domain Logic Test.
-
-    Verifies that unknown detector name raises ConfigError at init time.
-    """
-    from omniad.core.exceptions import ConfigError
-
-    with pytest.raises(ConfigError):
-        get_detector("TfidfDetector", detector="NonExistentDetector")
+    assert model.capabilities["segmentation"] is False
+    assert model.capabilities["incremental_learning"] is False

@@ -6,14 +6,21 @@ from typing import Any, cast
 
 import numpy.typing as npt
 
+from omniad.core.adapters.composition_adapter import BaseCompositionAdapter
 from omniad.core.adapters.transformers_adapter import BaseTransformersAdapter
 from omniad.core.exceptions import ConfigError
 from omniad.utils.detectors import build_detector, get_available_detectors
+from omniad.utils.introspection import (
+    resolve_default_inner_detector,
+    resolve_delegated_capabilities,
+    resolve_delegated_capabilities_dict,
+)
+from omniad.utils.text import ChunkingName, PoolingName
 
 logger = logging.getLogger(__name__)
 
 
-class BertDetectorAdapter(BaseTransformersAdapter):
+class BertDetectorAdapter(BaseCompositionAdapter, BaseTransformersAdapter):
     """
     Text anomaly detector using BERT embeddings.
 
@@ -72,8 +79,8 @@ class BertDetectorAdapter(BaseTransformersAdapter):
         device: str = "auto",
         batch_size: int = 32,
         max_length: int = 512,
-        pooling: str = "cls",
-        chunking_strategy: str | None = None,
+        pooling: PoolingName | str = "cls",
+        chunking_strategy: ChunkingName | str | None = None,
         contamination: float = 0.1,
         random_state: int | None = None,
         save_weights: bool = False,
@@ -103,6 +110,21 @@ class BertDetectorAdapter(BaseTransformersAdapter):
         )
 
         self._detector: Any = None
+
+    def _to_vectors(self, X: Any) -> Any:
+        """Validate raw text and return its transformer embedding."""
+        X = self._validate(X)
+        if self._transformer is None:
+            self._init_transformer()
+        return self._embed(X)
+
+    @classmethod
+    def get_capabilities(cls) -> set[str]:
+        return resolve_delegated_capabilities(resolve_default_inner_detector(cls))
+
+    @property
+    def capabilities(self) -> dict[str, bool]:
+        return resolve_delegated_capabilities_dict(self.detector)
 
     # --- Detection on Embeddings ---
 
@@ -137,5 +159,7 @@ class BertDetectorAdapter(BaseTransformersAdapter):
             name=self.detector,
             caller="BertDetector",
             contamination=self.contamination,
+            random_state=self.random_state,
+            **(self.detector_kwargs or {}),
         )
         self._detector.load(os.path.join(path, "detector.zip"))

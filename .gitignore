@@ -45,6 +45,7 @@ myenv/
 *.swp
 *.swo
 *~
+repopack.py
 
 # ==============================================================================
 # 4. Testing & Quality Assurance
@@ -76,6 +77,7 @@ dmypy.json
 docs/_build/
 docs/build/
 site/
+local/
 
 # ==============================================================================
 # 6. Data Science & Machine Learning (Generic)

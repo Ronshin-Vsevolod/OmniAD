@@ -7,7 +7,7 @@ registry for adding custom aggregation methods.
 
 from __future__ import annotations
 
-from typing import Any, Callable, cast
+from typing import Any, Callable, Literal, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -15,6 +15,9 @@ import numpy.typing as npt
 from omniad.core.exceptions import ConfigError
 
 # --- CHUNKING STRATEGIES ---
+
+
+ChunkingName = Literal["mean", "max", "first", "last"]
 
 # Signature: (chunks: npt.NDArray of shape (n_chunks, hidden_dim)) ->
 # npt.NDArray of shape (hidden_dim,)
@@ -87,17 +90,19 @@ def get_available_chunking_strategies() -> list[str]:
 
 
 def resolve_chunking_strategy(
-    strategy: str | ChunkAggregator | None,
+    strategy: ChunkingName | str | ChunkAggregator | None,
 ) -> ChunkAggregator | None:
     """
     Resolve a chunking strategy from string name, callable, or None.
 
     Parameters
     ----------
-    strategy : str, callable, or None
+    strategy : {"mean", "max", "first", "last"}, str, callable, or None
         - None: no chunking (truncate to max_length).
-        - str: registered strategy name.
-        - callable: custom aggregation function.
+        - One of the built-in names above, or a custom name registered
+          via register_chunking_strategy().
+        - callable: custom aggregation function,
+          `fn(chunks: np.ndarray) -> np.ndarray`.
 
     Returns
     -------
@@ -134,6 +139,8 @@ def reverse_lookup_chunking(func: ChunkAggregator) -> str | None:
 
     # --- POOLING ---
 
+
+PoolingName = Literal["cls", "mean"]
 
 # Signature: (last_hidden_state, attention_mask) to pooled_tensor
 PoolingFunction = Callable[[Any, Any], Any]
@@ -186,13 +193,16 @@ def get_available_poolings() -> list[str]:
     return sorted(_POOLING_REGISTRY.keys())
 
 
-def resolve_pooling(pooling: str | PoolingFunction) -> PoolingFunction:
+def resolve_pooling(pooling: PoolingName | str | PoolingFunction) -> PoolingFunction:
     """
     Resolve pooling from string name or callable.
 
     Parameters
     ----------
-    pooling : str or callable
+    pooling : {"cls", "mean"}, str, or callable
+        One of the built-in names above, a custom name registered via
+        register_pooling(), or a callable
+        `fn(last_hidden_state, attention_mask) -> pooled`
 
     Returns
     -------

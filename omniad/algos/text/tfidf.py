@@ -4,17 +4,24 @@ import logging
 import os
 from typing import Any, cast
 
+import numpy as np
 import numpy.typing as npt
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+from omniad.core.adapters.composition_adapter import BaseCompositionAdapter
 from omniad.core.base import BaseDetector
 from omniad.core.exceptions import ConfigError
 from omniad.utils.detectors import build_detector, get_available_detectors
+from omniad.utils.introspection import (
+    resolve_default_inner_detector,
+    resolve_delegated_capabilities,
+    resolve_delegated_capabilities_dict,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class TfidfDetectorAdapter(BaseDetector):
+class TfidfDetectorAdapter(BaseDetector, BaseCompositionAdapter):
     """
     Text anomaly detector using TF-IDF vectorization.
 
@@ -63,6 +70,7 @@ class TfidfDetectorAdapter(BaseDetector):
         **kwargs: Any,
     ) -> None:
         self.detector = detector
+        self._detector: Any = None
         self.max_features = max_features
         self.ngram_range = ngram_range
         self.random_state = random_state
@@ -79,12 +87,6 @@ class TfidfDetectorAdapter(BaseDetector):
     @classmethod
     def get_validation_rules(cls) -> set[str]:
         return {"domain_text"}
-
-    def _validate(self, X: Any) -> Any:
-        """Validate that input is a list of non-empty strings."""
-        from omniad.utils.validation import validate_text
-
-        return validate_text(X)
 
     def _fit_backend(self, X: Any, y: Any | None = None) -> None:
         logger.debug(
@@ -110,8 +112,8 @@ class TfidfDetectorAdapter(BaseDetector):
         self._detector.fit(vectors)
         self._backend_model = self._detector.backend_model
 
-    def predict_score(self, X: Any) -> npt.NDArray[Any]:
-        X = self._validate(X)
+    def _predict_score_backend(self, X: list[str]) -> npt.NDArray[Any]:
+        """Vectorize validated text, delegate to the inner detector."""
         vectors = self._vectorizer.transform(X)
         return cast(npt.NDArray[Any], self._detector.predict_score(vectors))
 
@@ -129,6 +131,24 @@ class TfidfDetectorAdapter(BaseDetector):
             name=self.detector,
             caller="TfidfDetector",
             contamination=self.contamination,
+            random_state=self.random_state,
+            **(self.detector_kwargs or {}),
         )
         self._detector.load(os.path.join(path, "detector.zip"))
         self._backend_model = self._detector.backend_model
+
+    def _to_vectors(self, X: Any) -> Any:
+        """Validate raw text and return its embedding for delegated calls."""
+        X = self._validate(X)
+        vectors = self._vectorizer.transform(X)
+        return np.asarray(vectors.todense())
+
+    @classmethod
+    def get_capabilities(cls) -> set[str]:
+        """Class-level default: capabilities of the default `detector=`."""
+        return resolve_delegated_capabilities(resolve_default_inner_detector(cls))
+
+    @property
+    def capabilities(self) -> dict[str, bool]:
+        """Delegatable capabilities of the actually configured `detector=`."""
+        return resolve_delegated_capabilities_dict(self.detector)

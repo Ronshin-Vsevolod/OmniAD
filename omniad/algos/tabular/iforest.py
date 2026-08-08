@@ -27,7 +27,6 @@ class IsolationForestAdapter(BaseSklearnAdapter, FeatureImportanceMixin):
 
     _backend_cls: ClassVar[type | None] = IsolationForest
     _param_mapping: ClassVar[dict[str, str]] = {}
-    _accepts_sparse: ClassVar[bool] = True
 
     def __init__(
         self,

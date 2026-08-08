@@ -7,13 +7,15 @@ Extensions for JAX/TensorFlow can be added via the _ops dispatcher.
 """
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
 import numpy as np
 
 from omniad.core.exceptions import ConfigError
 
 ScoreFunction = Callable[[Any, Any], Any]
+
+MetricName = Literal["mse", "mae", "rmse", "log_cosh", "huber"]
 
 
 # --- Lazy backend dispatch ---
@@ -35,40 +37,49 @@ def _ops(x: Any) -> Any:
     return np
 
 
+def _sample_axes(x: Any) -> tuple[int, ...]:
+    """
+    All axes except the batch axis (0), for per-sample reduction.
+    """
+    return tuple(range(1, x.ndim))
+
+
 # --- Built-in metrics ---
 
 
 def _mse(target: Any, output: Any) -> Any:
     """Mean Squared Error per sample."""
-    return ((target - output) ** 2).mean(-1)
+    diff = (target - output) ** 2
+    return diff.mean(axis=_sample_axes(diff))
 
 
 def _mae(target: Any, output: Any) -> Any:
     """Mean Absolute Error per sample."""
-    # abs() uses __abs__ dunder method, works for both tensor/ndarray
-    return abs(target - output).mean(-1)
+    diff = abs(target - output)
+    return diff.mean(axis=_sample_axes(diff))
 
 
 def _rmse(target: Any, output: Any) -> Any:
     """Root Mean Squared Error per sample."""
-    return ((target - output) ** 2).mean(-1) ** 0.5
+    diff = (target - output) ** 2
+    return diff.mean(axis=_sample_axes(diff)) ** 0.5
 
 
 def _log_cosh(target: Any, output: Any) -> Any:
     """Log-Cosh loss per sample."""
     ops = _ops(target)
     diff = target - output
-    # ops.cosh/log works for both torch/numpy modules
-    return ops.log(ops.cosh(diff)).mean(-1)
+    loss = ops.log(ops.cosh(diff))
+    return loss.mean(axis=_sample_axes(loss))
 
 
 def _huber(target: Any, output: Any, delta: float = 1.0) -> Any:
     """Huber loss per sample."""
     diff = abs(target - output)
-    # clip is a method on both ndarray and Tensor (since torch 1.7+)
     quadratic = diff.clip(max=delta)
     linear = diff - quadratic
-    return (0.5 * quadratic**2 + delta * linear).mean(-1)
+    loss = 0.5 * quadratic**2 + delta * linear
+    return loss.mean(axis=_sample_axes(loss))
 
 
 # --- Registry ---
@@ -98,7 +109,12 @@ def register_metric(name: str, func: ScoreFunction) -> None:
     _METRIC_REGISTRY[name] = func
 
 
-def resolve_metric(metric: str | ScoreFunction) -> ScoreFunction:
+def get_available_metrics() -> list[str]:
+    """List registered metric names."""
+    return sorted(_METRIC_REGISTRY.keys())
+
+
+def resolve_metric(metric: MetricName | str | ScoreFunction) -> ScoreFunction:
     """
     Resolve metric: validate callable or look up string in registry.
     """
@@ -107,9 +123,8 @@ def resolve_metric(metric: str | ScoreFunction) -> ScoreFunction:
 
     if isinstance(metric, str):
         if metric not in _METRIC_REGISTRY:
-            available = ", ".join(sorted(_METRIC_REGISTRY.keys()))
             raise ConfigError(
-                f"Unknown metric '{metric}'. Available: [{available}]. "
+                f"Unknown metric '{metric}'. Available: {get_available_metrics()}. "
                 "Use register_metric() to add custom ones."
             )
         return _METRIC_REGISTRY[metric]

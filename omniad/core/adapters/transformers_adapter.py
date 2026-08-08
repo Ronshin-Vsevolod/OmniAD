@@ -25,6 +25,8 @@ import numpy.typing as npt
 from omniad.core.base import BaseDetector
 from omniad.core.exceptions import ConfigError
 from omniad.utils.text import (
+    ChunkingName,
+    PoolingName,
     resolve_chunking_strategy,
     resolve_pooling,
     reverse_lookup_chunking,
@@ -87,8 +89,8 @@ class BaseTransformersAdapter(BaseDetector):
         device: str = "auto",
         batch_size: int = 32,
         max_length: int = 512,
-        pooling: str = "cls",
-        chunking_strategy: str | Callable[..., Any] | None = None,
+        pooling: PoolingName | str = "cls",
+        chunking_strategy: ChunkingName | str | Callable[..., Any] | None = None,
         contamination: float = 0.1,
         save_weights: bool = False,
         **kwargs: Any,
@@ -244,6 +246,7 @@ class BaseTransformersAdapter(BaseDetector):
             return np.array([self._embed_single_chunked(t) for t in texts])
 
     # --- fit / predict_score ---
+
     def _fit_backend(self, X: Any, y: Any | None = None) -> None:
         """
         Embed texts, fit detector, cache embeddings for threshold calculation.
@@ -260,27 +263,12 @@ class BaseTransformersAdapter(BaseDetector):
         embeddings = self._embed(X)
         self._fit_on_embeddings(embeddings, y)
 
-    def predict_score(self, X: Any) -> npt.NDArray[Any]:
-        """
-        Compute anomaly scores for texts.
-
-        Parameters
-        ----------
-        X : list[str]
-            Texts to score.
-
-        Returns
-        -------
-        scores : np.ndarray of shape (n_samples,)
-            Higher values indicate more anomalous texts.
-        """
-        X = self._validate(X)
+    def _predict_score_backend(self, X: list[str]) -> npt.NDArray[Any]:
+        """Embed validated texts and score via `_score_embeddings()`."""
         logger.debug("predict_score: n_samples=%d", len(X))
-
         if self._transformer is None:
             self._init_transformer()
         embeddings = self._embed(X)
-
         return self._score_embeddings(embeddings)
 
     # --- Abstract interface for subclasses ---

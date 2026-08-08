@@ -2,9 +2,11 @@ from typing import Any
 
 import numpy as np
 import numpy.typing as npt
+import pytest
 from sklearn.ensemble import IsolationForest as SklearnIF
 
 from omniad import get_detector
+from omniad.core.exceptions import CapabilityError
 from omniad.core.mixins import FeatureImportanceMixin
 
 
@@ -128,3 +130,13 @@ def test_iforest_feature_importance_logic() -> None:
     assert (
         imp[0] > imp[1]
     ), f"Informative feature should have higher importance. Got {imp}"
+
+
+def test_iforest_native_importance_unavailable(random_xy_dataset) -> None:
+    """D. Domain logic: unlike tree ensembles such as RandomForest,
+    sklearn's IsolationForest exposes no native feature_importances_ —
+    method='native' must fail structurally, not silently misreport."""
+    X_train, _, _ = random_xy_dataset
+    model = get_detector("IsolationForest", random_state=0).fit(X_train)
+    with pytest.raises(CapabilityError):
+        model.get_feature_importances(method="native")

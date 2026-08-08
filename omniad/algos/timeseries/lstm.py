@@ -11,6 +11,7 @@ import torch.nn as nn
 from omniad.core.adapters.torch_adapter import BaseTorchAdapter
 from omniad.core.exceptions import ConfigError
 from omniad.core.mixins import ReconstructionMixin
+from omniad.utils.errors import backend_boundary_method
 from omniad.utils.timeseries import create_windows
 
 logger = logging.getLogger(__name__)
@@ -57,7 +58,7 @@ class LSTMAdapter(BaseTorchAdapter, ReconstructionMixin):
     1. Reconstruction (default): Learns to reconstruct the input window.
     2. Forecasting: Uses input window to predict specific target columns.
 
-     Parameters
+    Parameters
     ----------
     window_size : int, default=10
         Length of the input sequence (look-back window).
@@ -113,15 +114,13 @@ class LSTMAdapter(BaseTorchAdapter, ReconstructionMixin):
         logger.debug("Windows: %s -> %s", X.shape, X_windows.shape)
         super()._fit_backend(X_windows, y)
 
-    def predict_score(self, X: Any) -> npt.NDArray[Any]:
+    def _predict_score_backend(self, X: npt.NDArray[Any]) -> npt.NDArray[Any]:
         """Override to handle window creation before prediction."""
         self._check_torch()
         if self.model is None or self.device is None:
             raise ConfigError("Model not initialized. Call fit() first.")
 
-        X = self._validate(X)
         X_windows = self._prepare_data(X).astype(np.float32)
-
         logger.debug("predict_score: windows=%d", len(X_windows))
 
         self.model.eval()
@@ -169,6 +168,7 @@ class LSTMAdapter(BaseTorchAdapter, ReconstructionMixin):
 
     # --- Mixin Implementation ---
 
+    @backend_boundary_method("predict_expected")
     def predict_expected(self, X: Any) -> npt.NDArray[Any]:
         """
         Return the model's prediction/reconstruction.

@@ -32,3 +32,18 @@ class BackendError(AnomalyLibError):
     """
 
     pass
+
+
+class CapabilityError(AnomalyLibError):
+    """
+    Raised when a valid, well-formed request cannot be fulfilled because
+    the algorithm/backend does not structurally support the operation.
+
+    Distinct from ConfigError: ConfigError signals invalid parameters,
+    CapabilityError signals a valid request that this class cannot
+    honor (e.g. partial_fit() on a batch-only model, a batch-only
+    threshold strategy used in a streaming context, native feature
+    importance on a model that doesn't expose it).
+    """
+
+    pass

@@ -1,16 +1,20 @@
 """
-The FeatureImportanceMixin can also be adapted for time series*
+Mixins providing optional, discoverable capabilities for anomaly
+detectors. See CAPABILITY_REGISTRY for the full list and
+BaseDetector.capabilities / describe_capability() for how they surface
+to users.
 """
 from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, cast
+from typing import Any, NamedTuple, cast
 
 import numpy as np
 import numpy.typing as npt
 
-from omniad.core.exceptions import ConfigError, DataFormatError
+from omniad.core.exceptions import CapabilityError, ConfigError, DataFormatError
+from omniad.utils.errors import backend_boundary_method
 from omniad.utils.validation import validate_input
 
 logger = logging.getLogger(__name__)
@@ -47,6 +51,7 @@ class FeatureImportanceMixin:
     via Permutation Importance.
     """
 
+    @backend_boundary_method("feature_importances")
     def get_feature_importances(
         self,
         X: Any = None,
@@ -92,7 +97,7 @@ class FeatureImportanceMixin:
                 imp = self.backend_model.feature_importances_
                 return cast("npt.NDArray[Any]", np.asarray(imp))
 
-            raise ConfigError(
+            raise CapabilityError(
                 f"The backend model for {self.__class__.__name__} does not expose "
                 "`feature_importances_` natively. "
                 "If you want to compute it via permutations, explicitly pass "
@@ -177,3 +182,97 @@ class SegmentationMixin(ABC):
             Per-pixel anomaly scores. Shape depends on domain:
             - CV: (N, H, W) — higher values indicate defects.
         """
+
+
+class IncrementalLearningMixin(ABC):
+    """
+    Mixin for detectors that support incremental (online) fitting,
+    updating internal state one sample at a time.
+
+    Deliberately as thin as ReconstructionMixin/SegmentationMixin: a
+    single abstract method, no hidden lifecycle hooks. A backend is
+    considered incremental only if a concrete algorithm explicitly
+    inherits this mixin and implements `_partial_fit_backend` — there
+    is no automatic detection based on the wrapped library. This keeps
+    the decision visible in the algorithm's own class declaration
+    (same idiom as `class LSTMAdapter(BaseTorchAdapter, ReconstructionMixin)`),
+    instead of introducing implicit per-template inference rule
+    """
+
+    @abstractmethod
+    def _partial_fit_backend(self, x: Any, y: Any | None = None) -> None:
+        """
+        Update model state using a single validated sample.
+
+        Parameters
+        ----------
+        x : Any
+            A single validated sample, shape (1, n_features).
+        y : Any | None, optional
+            Target value, ignored for unsupervised methods.
+        """
+
+
+class CapabilityInfo(NamedTuple):
+    """
+    Declarative description of a single discoverable capability.
+
+    delegatable : bool, default=False
+        Whether this capability's contract still holds after a
+        domain-to-vector transform, and can therefore be forwarded by
+        a composition adapter (see BaseCompositionAdapter) to whatever
+        inner detector it wraps.
+    """
+
+    mixin: type
+    slug: str
+    label: str
+    usage: str
+    delegatable: bool = False
+
+
+CAPABILITY_REGISTRY: list[CapabilityInfo] = [
+    CapabilityInfo(
+        FeatureImportanceMixin,
+        "feature_importance",
+        "Feature Importances",
+        "model.get_feature_importances(X)",
+        delegatable=True,
+    ),
+    CapabilityInfo(
+        ReconstructionMixin,
+        "reconstruction",
+        "Data Reconstruction",
+        "model.predict_expected(X)",
+        delegatable=True,
+    ),
+    CapabilityInfo(
+        SegmentationMixin,
+        "segmentation",
+        "Pixel-level Maps",
+        "model.predict_map(X)",
+        delegatable=False,  # spatial structure is destroyed by the
+        # flatten-to-vector transform
+    ),
+    CapabilityInfo(
+        IncrementalLearningMixin,
+        "incremental_learning",
+        "Online Learning",
+        "model.partial_fit(x)",
+        delegatable=False,  # would require merging two independent threshold_ states
+    ),
+]
+
+
+def describe_capability(slug: str) -> tuple[str, str | None]:
+    """
+    Resolve a capability slug to (label, usage_hint) for display.
+
+    Falls back to (slug, None) for adapter-declared capabilities that
+    have no CAPABILITY_REGISTRY entry (flags with no dedicated public
+    method, e.g. a hypothetical "gpu_accelerated").
+    """
+    for info in CAPABILITY_REGISTRY:
+        if info.slug == slug:
+            return info.label, info.usage
+    return slug, None

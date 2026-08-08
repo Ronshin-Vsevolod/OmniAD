@@ -7,11 +7,11 @@ import numpy as np
 import numpy.typing as npt
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, TensorDataset
 
 from omniad.core.adapters.torch_adapter import BaseTorchAdapter
 from omniad.core.exceptions import ConfigError
 from omniad.core.mixins import ReconstructionMixin, SegmentationMixin
+from omniad.utils.errors import backend_boundary_method
 
 logger = logging.getLogger(__name__)
 
@@ -81,9 +81,9 @@ class ConvAutoencoderAdapter(BaseTorchAdapter, ReconstructionMixin, Segmentation
     via high reconstruction error.
 
     Provides three output modes:
-    - ''predict_score(X)'' -> image-level anomaly scores (N,)
-    - ''predict_map(X)''   -> pixel-level anomaly maps (N, H, W)
-    - ''predict_expected(X)'' -> reconstructed images (N, C, H, W)
+    - ``predict_score(X)`` -> image-level anomaly scores (N,)
+    - ``predict_map(X)``   -> pixel-level anomaly maps (N, H, W)
+    - ``predict_expected(X)`` -> reconstructed images (N, C, H, W)
 
     Parameters
     ----------
@@ -146,7 +146,9 @@ class ConvAutoencoderAdapter(BaseTorchAdapter, ReconstructionMixin, Segmentation
 
     @classmethod
     def get_validation_rules(cls) -> set[str]:
-        return {"domain_image"}
+        rules = super().get_validation_rules()
+        rules.add("domain_image")
+        return rules
 
     def _extract_input_dim(self, X: Any) -> int:
         """For CV: input dimension = number of channels."""
@@ -171,9 +173,7 @@ class ConvAutoencoderAdapter(BaseTorchAdapter, ReconstructionMixin, Segmentation
     def _compute_anomaly_score(
         self, x: torch.Tensor, output: torch.Tensor
     ) -> torch.Tensor:
-        """Image-level: error averaged over (C, H, W) -> (B,)."""
-        batch_size = x.shape[0]
-        return ((x - output) ** 2).reshape(batch_size, -1).mean(dim=1)
+        return self.score_func(x, output)
 
     def _compute_pixel_error(
         self, x: torch.Tensor, output: torch.Tensor
@@ -183,6 +183,7 @@ class ConvAutoencoderAdapter(BaseTorchAdapter, ReconstructionMixin, Segmentation
 
     # --- SegmentationMixin ---
 
+    @backend_boundary_method("predict_map")
     def predict_map(self, X: Any) -> npt.NDArray[Any]:
         """
         Predict pixel-level anomaly map.
@@ -202,18 +203,13 @@ class ConvAutoencoderAdapter(BaseTorchAdapter, ReconstructionMixin, Segmentation
             raise ConfigError("Model not initialized. Call fit() first.")
 
         X = self._validate(X)
-        dataset = TensorDataset(torch.from_numpy(X))
-        loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
 
         self.model.eval()
         maps: list[npt.NDArray[Any]] = []
 
-        with torch.no_grad():
-            for (batch_x,) in loader:
-                batch_x = batch_x.to(self.device)
+        with torch.inference_mode():
+            for batch_x in self._iter_inference_batches(X):
                 output = self.model(batch_x)
-
-                # MSE over channels only -> (B, H, W)
                 pixel_error = self._compute_pixel_error(batch_x, output)
                 maps.append(pixel_error.cpu().numpy())
 
@@ -221,6 +217,7 @@ class ConvAutoencoderAdapter(BaseTorchAdapter, ReconstructionMixin, Segmentation
 
     # --- ReconstructionMixin ---
 
+    @backend_boundary_method("predict_expected")
     def predict_expected(self, X: Any) -> npt.NDArray[Any]:
         """
         Return reconstructed images.
@@ -238,15 +235,12 @@ class ConvAutoencoderAdapter(BaseTorchAdapter, ReconstructionMixin, Segmentation
             raise ConfigError("Model not initialized. Call fit() first.")
 
         X = self._validate(X)
-        dataset = TensorDataset(torch.from_numpy(X))
-        loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
 
         self.model.eval()
         results: list[npt.NDArray[Any]] = []
 
-        with torch.no_grad():
-            for (batch_x,) in loader:
-                batch_x = batch_x.to(self.device)
+        with torch.inference_mode():
+            for batch_x in self._iter_inference_batches(X):
                 output = self.model(batch_x)
                 results.append(output.cpu().numpy())
 

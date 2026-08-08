@@ -13,10 +13,19 @@ import numpy as np
 import numpy.typing as npt
 
 from omniad.core._logging import _ensure_verbose_handler, log_phase
-from omniad.core.exceptions import ConfigError, ModelNotFittedError
+from omniad.core.exceptions import CapabilityError, ConfigError, ModelNotFittedError
 from omniad.core.metrics import reverse_lookup_metric
+from omniad.core.mixins import (
+    CAPABILITY_REGISTRY,
+    IncrementalLearningMixin,
+    describe_capability,
+)
 from omniad.utils.errors import backend_boundary
-from omniad.utils.thresholds import resolve_threshold
+from omniad.utils.thresholds import (
+    ThresholdName,
+    ThresholdStrategy,
+    resolve_threshold,
+)
 from omniad.utils.validation import validate_input
 
 logger = logging.getLogger(__name__)
@@ -32,12 +41,22 @@ class BaseDetector(ABC):
         The amount of contamination of the data set, i.e. the proportion
         of outliers in the data set. Used when fitting to define the threshold
         on the scores.
+    threshold_strategy : str, ThresholdStrategy, float, or None, default="quantile"
+        Strategy used to calibrate `threshold_` during `fit()`, and
+        (if the strategy supports it) to keep it updated during
+        `partial_fit()`. See `omniad.utils.thresholds`.
+    verbose : int, default=0
+        Verbosity level of output.
     """
 
     def __init__(
         self,
         contamination: float = 0.1,
-        threshold_strategy: str | Callable[..., float] | float | None = "quantile",
+        threshold_strategy: ThresholdName
+        | str
+        | Callable[..., float]
+        | float
+        | None = "quantile",
         verbose: int = 0,
         **kwargs: Any,
     ) -> None:
@@ -46,6 +65,7 @@ class BaseDetector(ABC):
         self.verbose = verbose
         self._backend_model: Any = None
         self.threshold_: float | None = None
+        self._threshold_engine: ThresholdStrategy | None = None
         self._is_fitted = False
         self._cached_train_scores: npt.NDArray[Any] | None = None
 
@@ -86,15 +106,23 @@ class BaseDetector(ABC):
     def _calibrate_threshold(self, X: Any) -> None:
         """
         Calculate threshold based on threshold_strategy.
+
+        Builds and stores `self._threshold_engine`, a stateful
+        ThresholdStrategy instance. For strategies that support
+        `update()`, the same engine is later reused by `partial_fit()`,
+        so a model can be warm-started on a batch and then continue
+        calibrating online.
         """
         strategy = self.threshold_strategy
 
         if strategy is None:
             self.threshold_ = None
+            self._threshold_engine = None
             return
 
         if isinstance(strategy, (int, float)):
             self.threshold_ = float(strategy)
+            self._threshold_engine = None
             return
 
         if self._cached_train_scores is not None:
@@ -103,8 +131,10 @@ class BaseDetector(ABC):
         else:
             train_scores = self.predict_score(X)
 
-        threshold_fn = resolve_threshold(strategy)
-        self.threshold_ = float(threshold_fn(train_scores, self.contamination))
+        self._threshold_engine = resolve_threshold(strategy)
+        self.threshold_ = float(
+            self._threshold_engine.fit(train_scores, self.contamination)
+        )
 
     @abstractmethod
     def _fit_backend(self, X: Any, y: Any | None = None) -> None:
@@ -113,7 +143,6 @@ class BaseDetector(ABC):
         """
         pass
 
-    @abstractmethod
     def predict_score(self, X: Any) -> npt.NDArray[Any]:
         """
         Predict the anomaly score of X of the input samples.
@@ -126,10 +155,27 @@ class BaseDetector(ABC):
         Returns
         -------
         scores : np.ndarray of shape (n_samples,)
-            The anomaly score of the input samples.
             Higher values indicate larger anomalies.
         """
-        pass
+        X = self._validate(X)
+        with backend_boundary(self.__class__.__name__, phase="predict_score"):
+            return self._predict_score_backend(X)
+
+    @abstractmethod
+    def _predict_score_backend(self, X: Any) -> npt.NDArray[Any]:
+        """
+        Compute raw anomaly scores from already-validated input.
+
+        Parameters
+        ----------
+        X : Any
+            Output of `self._validate(X)`.
+
+        Returns
+        -------
+        scores : np.ndarray of shape (n_samples,)
+            Higher values indicate larger anomalies.
+        """
 
     def predict(self, X: Any, threshold: float | None = None) -> npt.NDArray[np.int_]:
         """
@@ -169,6 +215,85 @@ class BaseDetector(ABC):
             )
 
         return (scores > current_threshold).astype(np.int_)
+
+    def partial_fit(self, x: Any, y: Any | None = None) -> BaseDetector:
+        """
+        Incrementally update the model with a single streaming sample.
+
+        Requires the concrete class to explicitly implement
+        `IncrementalLearningMixin` (e.g. `class LSTMAdapter(BaseTorchAdapter,
+        IncrementalLearningMixin)`), and `fit()` to have been called at
+        least once — cold-start (streaming before any fit()) is not
+        supported.
+
+        Parameters
+        ----------
+        x : Any
+            A single sample.
+        y : Any | None, optional
+            Target value, ignored for unsupervised methods.
+
+        Returns
+        -------
+        self : object
+
+        Raises
+        ------
+        CapabilityError
+            If the algorithm does not support incremental learning, the
+            model has not been fitted yet, or the configured
+            threshold_strategy has no online update rule.
+        """
+        if not isinstance(self, IncrementalLearningMixin):
+            raise CapabilityError(
+                f"{self.__class__.__name__} does not support incremental " f"learning."
+            )
+
+        if not self._is_fitted:
+            raise CapabilityError(
+                f"{self.__class__.__name__} must be fit() before "
+                f"partial_fit() can be used."
+            )
+
+        x_valid = self._validate_single(x)
+
+        score = self._score_for_partial_fit(x_valid)
+
+        with backend_boundary(self.__class__.__name__, phase="partial_fit"):
+            self._partial_fit_backend(x_valid, y)
+
+        if self._threshold_engine is not None:
+            self.threshold_ = self._threshold_engine.update(score, self.contamination)
+
+        return self
+
+    def _score_for_partial_fit(self, x_valid: Any) -> float:
+        """
+        Compute the anomaly score of an incoming sample for the
+        test-then-train threshold update in partial_fit().
+
+        Default: delegates to predict_score(x_valid) — correct for
+        detectors whose score is a pure function of a single row
+        (tabular streaming). Override for algorithms whose score
+        depends on additional state beyond the row itself (e.g.
+        windowed time-series models, where scoring requires the
+        buffered context) — see LSTMAdapter._score_for_partial_fit.
+
+        Parameters
+        ----------
+        x_valid : Any
+            A single, already-validated sample.
+
+        Returns
+        -------
+        score : float
+        """
+        return float(self.predict_score(x_valid)[0])
+
+    def _validate_single(self, x: Any) -> Any:
+        """Validate a single streaming sample using this detector's rules."""
+        rules = (self.get_validation_rules() - {"require_2d"}) | {"require_single_row"}
+        return validate_input(x, rules)
 
     @property
     def backend_model(self) -> Any:
@@ -215,6 +340,76 @@ class BaseDetector(ABC):
         Always call super()._validate(X) first in that case.
         """
         return validate_input(X, rules=self.get_validation_rules())
+
+    # --- Discoverability ---
+
+    @classmethod
+    def get_capabilities(cls) -> set[str]:
+        """
+        Declare capability slugs for this class, without instantiation.
+
+        Auto-detects Mixin-derived capabilities (those backed by a
+        concrete public method, e.g. "reconstruction" -> predict_expected())
+        via CAPABILITY_REGISTRY. This is the same declarative pattern as
+        get_validation_rules(): a class-level method the core reads,
+        rather than a manually maintained side registry.
+
+        Returns
+        -------
+        capabilities : set[str]
+            Capability slugs, e.g. {"reconstruction", "incremental_learning"}.
+        """
+        return {
+            info.slug for info in CAPABILITY_REGISTRY if issubclass(cls, info.mixin)
+        }
+
+    @property
+    def capabilities(self) -> dict[str, bool]:
+        """
+        Boolean lookup for well-known capabilities (see CAPABILITY_REGISTRY).
+
+        Returns
+        -------
+        capabilities : dict[str, bool]
+        """
+        active = type(self).get_capabilities()
+        return {info.slug: info.slug in active for info in CAPABILITY_REGISTRY}
+
+    def __repr__(self) -> str:
+        """Compact single-line representation, safe for logging and containers."""
+        status = "fitted" if self._is_fitted else "unfitted"
+        threshold = f"{self.threshold_:.4f}" if self.threshold_ is not None else "None"
+        return f"<{self.__class__.__name__} {status} threshold={threshold}>"
+
+    def __str__(self) -> str:
+        """Multi-line, human-readable representation for print() / console use."""
+        lines = [
+            f"<{self.__class__.__name__}>",
+            f"Fitted: {self._is_fitted}",
+            "Capabilities:",
+        ]
+        slugs = sorted(type(self).get_capabilities())
+        if slugs:
+            for slug in slugs:
+                label, usage = describe_capability(slug)
+                lines.append(f"  - {label:<20} -> {usage}" if usage else f"  - {label}")
+        else:
+            lines.append("  (no extra capabilities)")
+        return "\n".join(lines)
+
+    def _repr_html_(self) -> str:
+        """Rich HTML representation, auto-used by Jupyter/IPython."""
+        slugs = sorted(type(self).get_capabilities())
+        rows = "".join(
+            f"<tr><td>{label}</td><td><code>{usage or '-'}</code></td></tr>"
+            for label, usage in (describe_capability(s) for s in slugs)
+        )
+        if not rows:
+            rows = "<tr><td colspan='2'>No extra capabilities</td></tr>"
+        return (
+            f"<b>{self.__class__.__name__}</b> (fitted={self._is_fitted})"
+            f"<table>{rows}</table>"
+        )
 
     # --- SERIALIZATION (ZIP Container) ---
 

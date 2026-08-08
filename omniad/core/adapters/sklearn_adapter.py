@@ -76,15 +76,13 @@ class BaseSklearnAdapter(BaseDetector):
 
         logger.debug("Backend fitted: %s", self._backend_cls.__name__)
 
-    def predict_score(self, X: Any) -> npt.NDArray[Any]:
+    def _predict_score_backend(self, X: Any) -> npt.NDArray[Any]:
         """
         Predict anomaly scores using the backend model.
 
         Attempts to use 'score_samples' first, then 'decision_function'.
         Inverts scores if '_invert_score' is True.
         """
-        X = self._validate(X)
-
         n = X.shape[0] if hasattr(X, "shape") else len(X)
         logger.debug("predict_score: n_samples=%d", n)
 

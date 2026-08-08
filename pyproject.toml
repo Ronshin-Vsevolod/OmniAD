@@ -40,6 +40,16 @@ strict = true
 ignore_missing_imports = true
 disallow_untyped_defs = true
 exclude = ["myenv/", "venv/"]
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = "."
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_decorators = false
+disable_error_code = ["attr-defined", "no-any-return", "type-arg"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
@@ -49,6 +59,7 @@ testpaths = [
 ]
 markers = [
     "deterministic: enable strict determinism mode",
+    "slow: heavy tests (real model downloads, training time). Included by default."
 ]
 
 [project.optional-dependencies]
@@ -68,7 +79,7 @@ deep = [
 ]
 
 text = [
-    "transformers>=4.0",
+    "transformers>=4.0,<5.0",
     # "nltk", # maybe
 ]
 
@@ -82,8 +93,12 @@ viz = [
     "seaborn>=0.12",
 ]
 
+streaming = [
+    "river>=0.21",
+]
+
 all = [
-    "omniad[deep,text,graph,viz]"
+    "omniad[deep,text,graph,viz,streaming]"
 ]
 
 [tool.setuptools]

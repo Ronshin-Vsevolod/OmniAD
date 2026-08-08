@@ -137,6 +137,30 @@ def _rule_reject_sparse(X: Any) -> Any:
     return X
 
 
+def _rule_require_single_row(X: Any) -> Any:
+    """
+    Validate a single streaming sample for partial_fit().
+
+    Reshapes a 1D vector into (1, n_features). Rejects batches with
+    more than one row.
+    """
+    import scipy.sparse as sp
+
+    if sp.issparse(X):
+        if X.shape[0] != 1:
+            raise DataFormatError(
+                f"partial_fit() expects exactly one sample, got shape {X.shape}."
+            )
+        return X
+    if X.ndim == 1:
+        return X.reshape(1, -1)
+    if X.ndim == 2 and X.shape[0] == 1:
+        return X
+    raise DataFormatError(
+        f"partial_fit() expects exactly one sample, got shape {X.shape}."
+    )
+
+
 def _rule_require_2d(X: Any) -> Any:
     """
     Ensure X is 2D.
@@ -254,6 +278,7 @@ _VALIDATION_REGISTRY: dict[str, Callable[[Any], Any]] = {
     "to_numpy": _rule_to_numpy,
     "reject_sparse": _rule_reject_sparse,
     "require_2d": _rule_require_2d,
+    "require_single_row": _rule_require_single_row,
     "reject_nan": _rule_reject_nan,
     "require_float32": _rule_require_float32,
     "domain_text": _rule_domain_text,
@@ -268,6 +293,7 @@ _VALIDATION_ORDER: tuple[str, ...] = (
     "to_numpy",
     "reject_sparse",
     "require_2d",
+    "require_single_row",
     "reject_nan",
     "require_float32",
 )
