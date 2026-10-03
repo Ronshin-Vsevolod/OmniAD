@@ -22,9 +22,11 @@ from omniad.core.mixins import (
 )
 from omniad.utils.errors import backend_boundary
 from omniad.utils.thresholds import (
+    FunctionThresholdStrategy,
     ThresholdName,
     ThresholdStrategy,
     resolve_threshold,
+    reverse_lookup_threshold,
 )
 from omniad.utils.validation import validate_input
 
@@ -48,6 +50,13 @@ class BaseDetector(ABC):
     verbose : int, default=0
         Verbosity level of output.
     """
+
+    _serialization_exclude = frozenset(
+        {
+            "_backend_model",
+            "_cached_train_scores",
+        }
+    )
 
     def __init__(
         self,
@@ -411,6 +420,33 @@ class BaseDetector(ABC):
             f"<table>{rows}</table>"
         )
 
+    def _serialization_state(self) -> dict[str, Any]:
+        """
+        Return wrapper state suitable for generic serialization.
+
+        Most detector attributes are lightweight configuration or fitted
+        OmniAD state and are persisted automatically. Attributes owned by
+        backend adapters are excluded because `_save_backend()` serializes
+        them separately using the backend's native format.
+
+        Transient attribute declarations are collected across the full MRO,
+        allowing independent adapter layers and mixins to contribute their
+        own exclusions without requiring concrete algorithms to merge sets
+        manually.
+
+        Returns
+        -------
+        state : dict[str, Any]
+            Instance attributes to store in `attributes.pkl`.
+        """
+        transient: set[str] = set()
+        for cls in type(self).__mro__:
+            transient.update(getattr(cls, "_serialization_exclude", ()))
+
+        return {
+            key: value for key, value in self.__dict__.items() if key not in transient
+        }
+
     # --- SERIALIZATION (ZIP Container) ---
 
     def save(self, filepath: str) -> None:
@@ -450,8 +486,7 @@ class BaseDetector(ABC):
 
             # 3. Wrapper Attributes (Scalers, configs, etc.)
             # We make a copy and remove the heavy backend model to avoid pickling it
-            state = self.__dict__.copy()
-            state.pop("_backend_model", None)
+            state = self._serialization_state()
 
             # If the model has a 'score_metric' attribute that is a function,
             # convert it to string name for pickling.
@@ -466,6 +501,22 @@ class BaseDetector(ABC):
                         "  register_metric('my_metric', func)"
                     )
                 state["score_metric"] = name
+
+            strategy = state.get("threshold_strategy")
+            if callable(strategy):
+                name = reverse_lookup_threshold(strategy)
+                if name is None:
+                    raise ConfigError(
+                        "Cannot save model with unregistered custom \
+                        threshold strategy. "
+                        "Please register it:\n"
+                        "  from omniad.utils.thresholds import register_threshold\n"
+                        "  register_threshold('my_threshold', func)"
+                    )
+                state["threshold_strategy"] = name
+
+            if isinstance(state.get("_threshold_engine"), FunctionThresholdStrategy):
+                state["_threshold_engine"] = None
 
             joblib.dump(state, os.path.join(tmp_dir, "attributes.pkl"))
 
@@ -495,6 +546,11 @@ class BaseDetector(ABC):
             # 1. Restore Attributes (Scalers, etc.)
             attributes = joblib.load(os.path.join(tmp_dir, "attributes.pkl"))
             self.__dict__.update(attributes)
+
+            if self._threshold_engine is None and isinstance(
+                self.threshold_strategy, str
+            ):
+                self._threshold_engine = resolve_threshold(self.threshold_strategy)
 
             # 2. Restore Backend
             backend_path = os.path.join(tmp_dir, "backend")

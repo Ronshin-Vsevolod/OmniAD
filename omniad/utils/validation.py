@@ -187,12 +187,17 @@ def _rule_reject_nan(X: Any) -> Any:
     """
     Raise if X contains NaN or Inf values.
 
-    Uses _check_array_compat to leverage sklearn's version-compatible
-    finite check. Skips the check for sparse matrices.
+    Sparse matrices are checked through their stored data array
+    without converting them to dense representation.
     """
     import scipy.sparse as sp
 
     if sp.issparse(X):
+        if not np.isfinite(X.data).all():
+            raise DataFormatError(
+                "Input contains NaN or infinite values. "
+                "Clean your data or use a detector that supports NaN."
+            )
         return X
 
     arr = np.asarray(X)

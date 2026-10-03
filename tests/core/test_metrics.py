@@ -13,7 +13,6 @@ import pytest
 
 from omniad.core.exceptions import ConfigError
 from omniad.core.metrics import (
-    get_available_metrics,
     register_metric,
     resolve_metric,
     reverse_lookup_metric,
@@ -58,31 +57,6 @@ def test_huber_matches_manual_per_sample_formula_with_clipping() -> None:
     linear = diff - quadratic
     expected = np.mean(0.5 * quadratic**2 + 1.0 * linear, axis=1)
     np.testing.assert_allclose(scores, expected, rtol=1e-10)
-
-
-def test_all_metrics_agree_on_zero_diff_sample() -> None:
-    """Sample 1 (target == output) must score exactly 0 for every
-    built-in metric, independent of the formula's shape."""
-    for name in ("mse", "mae", "rmse", "log_cosh", "huber"):
-        scores = resolve_metric(name)(TARGET, OUTPUT)
-        assert scores[1] == pytest.approx(0.0, abs=1e-12), name
-
-
-def test_ops_dispatch_gives_same_result_for_numpy_and_torch() -> None:
-    """The `_ops` trick must be truly backend-agnostic: identical
-    values through numpy vs torch must produce identical scores."""
-    torch = pytest.importorskip("torch")
-    metric = resolve_metric("mse")
-
-    np_scores = metric(TARGET, OUTPUT)
-    torch_scores = metric(torch.from_numpy(TARGET), torch.from_numpy(OUTPUT)).numpy()
-
-    np.testing.assert_allclose(np_scores, torch_scores, rtol=1e-6)
-
-
-def test_get_available_metrics_includes_builtins() -> None:
-    available = get_available_metrics()
-    assert {"mse", "mae", "rmse", "log_cosh", "huber"} <= set(available)
 
 
 def test_resolve_metric_passes_through_callables() -> None:

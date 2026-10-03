@@ -12,7 +12,12 @@ import pytest
 import scipy.sparse as sp
 
 from omniad.core.exceptions import DataFormatError
-from omniad.utils.validation import register_validation_rule, validate_input
+from omniad.utils.validation import (
+    register_validation_rule,
+    validate_image,
+    validate_input,
+    validate_text,
+)
 
 # --- to_numpy ---
 
@@ -123,6 +128,12 @@ def test_reject_nan_passes_finite_values() -> None:
 def test_reject_nan_skips_sparse_input() -> None:
     result = validate_input(sp.csr_matrix(np.eye(3)), {"reject_nan"})
     assert sp.issparse(result)
+
+
+def test_reject_nan_checks_sparse_matrix_data() -> None:
+    X = sp.csr_matrix([[1.0, np.nan], [2.0, 3.0]])
+    with pytest.raises(DataFormatError):
+        validate_input(X, {"reject_nan"})
 
 
 # --- require_float32 ---
@@ -244,3 +255,15 @@ def test_register_validation_rule_runs_and_is_positioned_after_target() -> None:
 
     assert calls == [(3,)]  # ran after to_numpy, before require_2d's reshape
     assert result.shape == (3, 1)
+
+
+# --- shortcuts ---
+
+
+def test_validate_text_shortcut_uses_text_validation() -> None:
+    assert validate_text(["hello"]) == ["hello"]
+
+
+def test_validate_image_shortcut_uses_image_validation() -> None:
+    X = np.zeros((2, 1, 4, 4), dtype=np.float32)
+    assert validate_image(X) is X

@@ -26,6 +26,7 @@ class BaseCompositionAdapter:
       into the representation `self._detector` was fit on.
     """
 
+    _serialization_exclude = frozenset({"_detector"})
     _detector: Any
     detector: str
 

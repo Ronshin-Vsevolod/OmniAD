@@ -51,10 +51,17 @@ def resolve_default_inner_detector(cls: type) -> str:
     constructor parameter (single source of truth — avoids hardcoding
     the default name a second time next to the signature).
 
+    Inspects the signature directly rather than going through
+    extract_init_params(): that helper encodes "no default provided"
+    as the display string "required" (useful for describe()/.pyi
+    output), which would otherwise be indistinguishable here from a
+    genuine string default.
+
     Parameters
     ----------
     cls : type
-        Adapter class exposing a string-defaulted `detector` parameter.
+        Adapter class expected to expose a string-defaulted `detector`
+        constructor parameter.
 
     Returns
     -------
@@ -64,15 +71,23 @@ def resolve_default_inner_detector(cls: type) -> str:
     Raises
     ------
     ConfigError
-        If `detector` has no string default (adapter misconfigured).
+        If `detector` is missing, has no default, or its default is
+        not a string.
     """
-    default = extract_init_params(cls).get("detector")
-    if not isinstance(default, str):
+    sig = inspect.signature(cls.__init__)  # type: ignore[misc]
+    param = sig.parameters.get("detector")
+
+    if param is None or param.default is inspect.Parameter.empty:
         raise ConfigError(
             f"{cls.__name__} must declare a string default for `detector=` "
             f"to support class-level capability introspection."
         )
-    return default
+    if not isinstance(param.default, str):
+        raise ConfigError(
+            f"{cls.__name__}'s `detector=` default must be a string "
+            f"(registry name), got {type(param.default).__name__}."
+        )
+    return param.default
 
 
 def resolve_delegated_capabilities(detector_name: str) -> set[str]:

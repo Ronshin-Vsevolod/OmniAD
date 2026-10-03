@@ -114,8 +114,6 @@ class BertDetectorAdapter(BaseCompositionAdapter, BaseTransformersAdapter):
     def _to_vectors(self, X: Any) -> Any:
         """Validate raw text and return its transformer embedding."""
         X = self._validate(X)
-        if self._transformer is None:
-            self._init_transformer()
         return self._embed(X)
 
     @classmethod

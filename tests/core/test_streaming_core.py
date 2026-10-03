@@ -37,3 +37,19 @@ def test_partial_fit_updates_backend_state() -> None:
     center_before = model._center.copy()
     model.partial_fit(np.full(4, 100.0))
     assert not np.allclose(center_before, model._center)
+
+
+def test_streaming_threshold_state_survives_roundtrip(tmp_path) -> None:
+    model = DummyStreamingDetector(threshold_strategy="ewma").fit(X)
+
+    for row in X[:10]:
+        model.partial_fit(row)
+
+    path = tmp_path / "model.zip"
+    model.save(str(path))
+    loaded = DummyStreamingDetector().load(str(path))
+
+    before = loaded.threshold_
+    loaded.partial_fit(X[10])
+
+    assert loaded.threshold_ != before

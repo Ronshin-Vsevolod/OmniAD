@@ -7,6 +7,7 @@ from omniad.utils.thresholds import (
     IQRThreshold,
     QuantileThreshold,
     Sigma3Threshold,
+    StreamingQuantileThreshold,
     ThresholdStrategy,
     get_available_thresholds,
     register_threshold,
@@ -44,7 +45,7 @@ def test_iqr_threshold_formula_pin() -> None:
 
 
 def test_sigma3_threshold_ignores_contamination_by_design() -> None:
-    """Documents a real API surprise: unlike Quantile/IQR, Sigma3 does not use `contamination` at all."""
+    """Sigma3 is intentionally independent of contamination."""
     t = Sigma3Threshold()
     assert t.fit(scores, 0.01) == t.fit(scores, 0.5)
 
@@ -71,12 +72,54 @@ def test_batch_only_strategies_raise_on_update(cls) -> None:
 
 
 def test_ewma_converges_toward_a_repeated_new_score() -> None:
-    """A genuine mechanism check: repeated evidence should pull the running mean toward it."""
+    """Repeated evidence pulls the running mean toward the new score."""
     t = EWMAThreshold(alpha=0.3, k=0.0)  # k=0 isolates the running mean itself
     t.fit(scores, 0.1)
     first = t.update(1000.0, 0.1)
     second = t.update(1000.0, 0.1)
     assert second > first  # still climbing toward 1000 after two pulls
+
+
+def test_streaming_quantile_fit_and_update() -> None:
+    pytest.importorskip("river")
+
+    from omniad.utils.thresholds import StreamingQuantileThreshold
+
+    threshold = StreamingQuantileThreshold()
+    fitted = threshold.fit(np.arange(100, dtype=float), contamination=0.1)
+    updated = threshold.update(1000.0, contamination=0.1)
+
+    assert np.isfinite(fitted)
+    assert np.isfinite(updated)
+
+
+def test_streaming_quantile_rebuilds_when_contamination_changes() -> None:
+    pytest.importorskip("river")
+
+    from omniad.utils.thresholds import StreamingQuantileThreshold
+
+    threshold = StreamingQuantileThreshold()
+    threshold.fit(np.arange(100, dtype=float), contamination=0.1)
+    first_estimator = threshold._q
+
+    threshold.update(10.0, contamination=0.2)
+
+    assert threshold._q is not first_estimator
+    assert threshold._contamination == 0.2
+
+
+def test_streaming_quantile_resets_when_contamination_changes() -> None:
+    """Changing the target quantile rebuilds the streaming estimator."""
+    pytest.importorskip("river")
+
+    threshold = StreamingQuantileThreshold()
+    threshold.fit(scores, contamination=0.2)
+    previous = threshold._q
+
+    threshold.update(10.0, contamination=0.1)
+
+    assert threshold._q is not previous
+    assert threshold._contamination == 0.1
 
 
 def test_ewma_update_without_prior_fit_seeds_from_first_score() -> None:

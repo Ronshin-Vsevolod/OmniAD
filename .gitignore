@@ -46,6 +46,7 @@ myenv/
 *.swo
 *~
 repopack.py
+repo_context.md
 
 # ==============================================================================
 # 4. Testing & Quality Assurance

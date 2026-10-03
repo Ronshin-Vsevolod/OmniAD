@@ -11,6 +11,7 @@ import pytest
 
 from omniad.core.exceptions import ConfigError
 from omniad.utils.text import (
+    ChunkAggregator,
     get_available_chunking_strategies,
     get_available_poolings,
     register_chunking_strategy,
@@ -24,24 +25,29 @@ from omniad.utils.text import (
 CHUNKS = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
 
 
+def _chunking(name: str) -> ChunkAggregator:
+    strategy = resolve_chunking_strategy(name)
+    assert strategy is not None
+    return strategy
+
+
 # --- Built-in chunking strategies ---
 
 
 def test_mean_chunking_averages_all_chunks() -> None:
-    np.testing.assert_allclose(resolve_chunking_strategy("mean")(CHUNKS), [3.0, 4.0])
+    np.testing.assert_allclose(_chunking("mean")(CHUNKS), [3.0, 4.0])
 
 
 def test_max_chunking_selects_highest_l2_norm_chunk() -> None:
-    # norms: sqrt(5), sqrt(25)=5.0, sqrt(61)≈7.81 — last chunk wins.
-    np.testing.assert_allclose(resolve_chunking_strategy("max")(CHUNKS), [5.0, 6.0])
+    np.testing.assert_allclose(_chunking("max")(CHUNKS), [5.0, 6.0])
 
 
 def test_first_chunking_selects_first_chunk() -> None:
-    np.testing.assert_allclose(resolve_chunking_strategy("first")(CHUNKS), [1.0, 2.0])
+    np.testing.assert_allclose(_chunking("first")(CHUNKS), [1.0, 2.0])
 
 
 def test_last_chunking_selects_last_chunk() -> None:
-    np.testing.assert_allclose(resolve_chunking_strategy("last")(CHUNKS), [5.0, 6.0])
+    np.testing.assert_allclose(_chunking("last")(CHUNKS), [5.0, 6.0])
 
 
 def test_resolve_chunking_strategy_none_means_no_chunking() -> None:
@@ -68,6 +74,7 @@ def test_register_chunking_strategy_roundtrip() -> None:
 
     assert "weighted_first_double_test" in get_available_chunking_strategies()
     resolved = resolve_chunking_strategy("weighted_first_double_test")
+    assert resolved is not None
     np.testing.assert_allclose(resolved(CHUNKS), [2.0, 4.0])
     assert (
         reverse_lookup_chunking(weighted_first_double) == "weighted_first_double_test"
@@ -122,7 +129,7 @@ def test_resolve_pooling_unknown_name_raises_config_error() -> None:
 def test_register_pooling_roundtrip() -> None:
     torch = pytest.importorskip("torch")
 
-    def last_token_pooling(hidden: torch.Tensor, mask: object) -> torch.Tensor:
+    def last_token_pooling(hidden, mask):
         return hidden[:, -1, :]
 
     register_pooling("last_token_pooling_test", last_token_pooling)

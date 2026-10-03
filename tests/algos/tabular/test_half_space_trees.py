@@ -4,9 +4,9 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-river = pytest.importorskip("river")
-
 from omniad import get_detector
+
+river = pytest.importorskip("river")
 
 
 def test_hst_parity_with_raw_river(random_xy_dataset: tuple[Any, Any, Any]) -> None:
@@ -65,25 +65,27 @@ def test_hst_partial_fit_streams(random_xy_dataset: tuple[Any, Any, Any]) -> Non
 
 
 def test_hst_fit_uses_same_primitives_as_partial_fit(monkeypatch) -> None:
-    """D. Domain logic: fit() is a loop over learn_one/score_one, not a
-    separate batch API — the defining trait of this adapter family."""
+    """D. Domain logic: batch fit uses river's streaming primitives."""
     X = np.random.default_rng(0).normal(size=(20, 3))
     model = get_detector("HalfSpaceTrees")
     backend = model._build_backend()
     monkeypatch.setattr(model, "_build_backend", lambda: backend)
 
     calls = {"learn": 0, "score": 0}
-    orig_learn, orig_score = backend.learn_one, backend.score_one
-    monkeypatch.setattr(
-        backend,
-        "learn_one",
-        lambda x: (calls.__setitem__("learn", calls["learn"] + 1), orig_learn(x))[1],
-    )
-    monkeypatch.setattr(
-        backend,
-        "score_one",
-        lambda x: (calls.__setitem__("score", calls["score"] + 1), orig_score(x))[1],
-    )
+    original_learn = backend.learn_one
+    original_score = backend.score_one
+
+    def counting_learn(x):
+        calls["learn"] += 1
+        return original_learn(x)
+
+    def counting_score(x):
+        calls["score"] += 1
+        return original_score(x)
+
+    monkeypatch.setattr(backend, "learn_one", counting_learn)
+    monkeypatch.setattr(backend, "score_one", counting_score)
 
     model.fit(X)
+
     assert calls == {"learn": len(X), "score": len(X)}

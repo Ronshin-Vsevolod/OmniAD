@@ -1,7 +1,11 @@
+import zipfile
+
+import joblib
 import numpy as np
 import pytest
 
 from omniad import get_detector
+from omniad.core.exceptions import ConfigError
 from tests.support import require_algo
 
 ALGO = "BertDetector"
@@ -23,6 +27,13 @@ def test_bert_param_injection(text_dataset) -> None:
     model = get_detector(ALGO, preset="debug", pooling="mean", max_length=32).fit(train)
     assert model.max_length == 32
     assert model.pooling == "mean"
+
+
+def test_bert_unknown_detector_raises_config_error() -> None:
+    """B. Injection/config guard: fails before any tokenizer/model is
+    touched, so this needs neither `transformers` nor `torch`."""
+    with pytest.raises(ConfigError):
+        get_detector("BertDetector", detector="NotARealDetector")
 
 
 def test_bert_determinism(text_dataset) -> None:
@@ -70,3 +81,119 @@ def test_bert_separates_known_anomalies_with_real_weights(text_dataset) -> None:
     train, test, y_test = text_dataset
     scores = get_detector(ALGO, preset="fast").fit(train).predict_score(test)
     assert scores[y_test == 1].mean() > scores[y_test == 0].mean()
+
+
+def test_bert_class_capabilities_match_default_detector() -> None:
+    """D. Domain logic: class discovery uses the default inner detector."""
+    from omniad.algos.text.bert import BertDetectorAdapter
+
+    assert "feature_importance" in BertDetectorAdapter.get_capabilities()
+
+
+def test_bert_save_weights_controls_transformer_persistence(
+    text_dataset, tmp_path
+) -> None:
+    """D. Domain logic: save_weights controls transformer weight persistence."""
+    require_algo(ALGO)
+    train, _, _ = text_dataset
+
+    for save_weights in (False, True):
+        model = get_detector(
+            ALGO,
+            preset="debug",
+            save_weights=save_weights,
+        ).fit(train)
+
+        path = tmp_path / f"bert_{save_weights}.zip"
+        model.save(str(path))
+
+        extract_dir = tmp_path / f"extracted_{save_weights}"
+        with zipfile.ZipFile(path) as zf:
+            names = set(zf.namelist())
+            zf.extract("attributes.pkl", extract_dir)
+
+        state = joblib.load(extract_dir / "attributes.pkl")
+
+        assert ("backend/transformer_weights.pt" in names) is save_weights
+        assert "_transformer" not in state
+        assert "_tokenizer" not in state
+        assert "_detector" not in state
+
+
+def test_bert_rejects_unregistered_pooling_on_save(text_dataset, tmp_path) -> None:
+    """D. Domain logic: custom pooling must be registered before saving."""
+    require_algo(ALGO)
+    train, _, _ = text_dataset
+
+    def custom_pooling(hidden, mask):
+        return hidden[:, 0, :]
+
+    model = get_detector(
+        ALGO,
+        preset="debug",
+        pooling=custom_pooling,
+    ).fit(train)
+
+    with pytest.raises(ConfigError, match="unregistered pooling"):
+        model.save(str(tmp_path / "model.zip"))
+
+
+def test_bert_rejects_unregistered_chunking_on_save(text_dataset, tmp_path) -> None:
+    """D. Domain logic: custom chunking must be registered before saving."""
+    require_algo(ALGO)
+    train, _, _ = text_dataset
+
+    def custom_chunking(chunks):
+        return chunks.mean(axis=0)
+
+    model = get_detector(
+        ALGO,
+        preset="debug",
+        chunking_strategy=custom_chunking,
+    ).fit(train)
+
+    with pytest.raises(ConfigError, match="unregistered chunking"):
+        model.save(str(tmp_path / "model.zip"))
+
+
+def test_bert_registered_text_strategies_survive_roundtrip(
+    text_dataset, tmp_path
+) -> None:
+    """D. Domain logic: registered text strategies are restored by name."""
+    from omniad.utils.text import register_chunking_strategy, register_pooling
+
+    require_algo(ALGO)
+    train, test, _ = text_dataset
+
+    def custom_pooling(hidden, mask):
+        return hidden[:, 0, :]
+
+    def custom_chunking(chunks):
+        return chunks.mean(axis=0)
+
+    register_pooling("serialization_pooling_test", custom_pooling)
+    register_chunking_strategy(
+        "serialization_chunking_test",
+        custom_chunking,
+    )
+
+    model = get_detector(
+        ALGO,
+        preset="debug",
+        pooling=custom_pooling,
+        chunking_strategy=custom_chunking,
+    ).fit(train)
+
+    before = model.predict_score(test)
+    path = tmp_path / "model.zip"
+    model.save(str(path))
+
+    loaded = get_detector(ALGO).load(str(path))
+
+    assert loaded.pooling == "serialization_pooling_test"
+    assert loaded.chunking_strategy == "serialization_chunking_test"
+    np.testing.assert_allclose(
+        loaded.predict_score(test),
+        before,
+        rtol=1e-5,
+    )

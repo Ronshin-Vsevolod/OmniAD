@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
+from typing import Any, Callable
 
 import joblib
 import numpy as np
@@ -28,6 +28,7 @@ import numpy.typing as npt
 
 from omniad.core.base import BaseDetector
 from omniad.core.mixins import IncrementalLearningMixin
+from omniad.utils.thresholds import ThresholdName
 
 logger = logging.getLogger(__name__)
 

@@ -83,6 +83,18 @@ class BaseTransformersAdapter(BaseDetector):
         If True, save full model weights (state_dict) in addition to config.
     """
 
+    _serialization_exclude = frozenset(
+        {
+            "_tokenizer",
+            "_transformer",
+            "_torch_device",
+            "_pool_fn",
+            "_chunk_fn",
+            "pooling",
+            "chunking_strategy",
+        }
+    )
+
     def __init__(
         self,
         model_name: str = "bert-base-uncased",

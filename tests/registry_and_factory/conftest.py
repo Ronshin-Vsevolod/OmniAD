@@ -26,3 +26,22 @@ def fake_registry_entry(monkeypatch: pytest.MonkeyPatch) -> str:
     )
     monkeypatch.setitem(PRESETS, name, {"fast": {"n_estimators": 999}})
     return name
+
+
+@pytest.fixture
+def broken_registry_entry(monkeypatch: pytest.MonkeyPatch) -> str:
+    """
+    Registers an algorithm pointing at a module that does not exist,
+    for exercising _resolve_adapter_class()'s ImportError translation.
+    """
+    name = "_TestOnlyBroken"
+    monkeypatch.setitem(
+        _REGISTRY,
+        name,
+        {
+            "module": "omniad.algos.tabular.this_module_does_not_exist",
+            "requires": None,
+            "domain": "tabular",
+        },
+    )
+    return name

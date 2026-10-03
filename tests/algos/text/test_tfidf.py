@@ -1,9 +1,13 @@
+import zipfile
 from collections import Counter
 
+import joblib
 import numpy as np
+import pytest
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from omniad import get_detector
+from omniad.core.exceptions import ConfigError
 
 
 def test_tfidf_parity_with_manual_pipeline(text_dataset) -> None:
@@ -32,6 +36,13 @@ def test_tfidf_param_injection(text_dataset) -> None:
     )
     assert model._vectorizer.max_features == 50
     assert model._vectorizer.ngram_range == (1, 2)
+
+
+def test_tfidf_unknown_detector_raises_config_error() -> None:
+    """B. Injection/config guard: `detector=` is validated eagerly,
+    before any vectorizer/backend is touched."""
+    with pytest.raises(ConfigError):
+        get_detector("TfidfDetector", detector="NotARealDetector")
 
 
 def test_tfidf_determinism(text_dataset) -> None:
@@ -91,3 +102,50 @@ def test_tfidf_reports_no_segmentation_or_incremental_learning() -> None:
     model = get_detector("TfidfDetector")
     assert model.capabilities["segmentation"] is False
     assert model.capabilities["incremental_learning"] is False
+
+
+def test_tfidf_load_restores_vectorizer(text_dataset, tmp_path) -> None:
+    """D. Domain logic: serialization preserves the fitted vocabulary."""
+    train, _, _ = text_dataset
+    model = get_detector(
+        "TfidfDetector",
+        max_features=50,
+        random_state=42,
+    ).fit(train)
+
+    path = str(tmp_path / "tfidf_model")
+    model.save(path)
+    loaded = get_detector("TfidfDetector").load(path)
+
+    assert list(loaded._vectorizer.get_feature_names_out()) == list(
+        model._vectorizer.get_feature_names_out()
+    )
+
+
+def test_tfidf_class_capabilities_match_default_detector() -> None:
+    """D. Domain logic: class discovery uses the default inner detector."""
+    from omniad.algos.text.tfidf import TfidfDetectorAdapter
+
+    assert "feature_importance" in TfidfDetectorAdapter.get_capabilities()
+
+
+def test_tfidf_backend_state_is_not_duplicated_in_wrapper_state(
+    text_dataset, tmp_path
+) -> None:
+    """D. Domain logic: composed backend state is stored only once."""
+    train, _, _ = text_dataset
+    model = get_detector("TfidfDetector").fit(train)
+
+    path = tmp_path / "model.zip"
+    model.save(str(path))
+
+    with zipfile.ZipFile(path) as zf:
+        names = set(zf.namelist())
+        zf.extract("attributes.pkl", tmp_path)
+
+    state = joblib.load(tmp_path / "attributes.pkl")
+
+    assert "backend/vectorizer.joblib" in names
+    assert "backend/detector.zip" in names
+    assert "_vectorizer" not in state
+    assert "_detector" not in state

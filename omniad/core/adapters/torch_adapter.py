@@ -53,6 +53,14 @@ class BaseTorchAdapter(BaseDetector):
         Additional arguments passed to BaseDetector or stored for backend configuration.
     """
 
+    _serialization_exclude = frozenset(
+        {
+            "model",
+            "device",
+            "_generator",
+            "score_func",
+        }
+    )
     _accepted_dims: ClassVar[tuple[int, ...] | None] = (2, 3)
 
     def __init__(
@@ -321,6 +329,7 @@ class BaseTorchAdapter(BaseDetector):
         self.device = self._setup_device()
         self.model = self._build_model(self.n_features_in_).to(self.device)
         self._backend_model = self.model
+        self.score_func = resolve_metric(self.score_metric)
 
         # Load weights with map_location (handles GPU->CPU loading)
         state_dict = torch.load(model_path, map_location=self.device)

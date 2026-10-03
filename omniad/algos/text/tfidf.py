@@ -59,6 +59,8 @@ class TfidfDetectorAdapter(BaseDetector, BaseCompositionAdapter):
     ... )
     """
 
+    _serialization_exclude = frozenset({"_vectorizer"})
+
     def __init__(
         self,
         detector: str = "IsolationForest",
