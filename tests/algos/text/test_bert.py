@@ -32,6 +32,8 @@ def test_bert_param_injection(text_dataset) -> None:
 def test_bert_unknown_detector_raises_config_error() -> None:
     """B. Injection/config guard: fails before any tokenizer/model is
     touched, so this needs neither `transformers` nor `torch`."""
+    require_algo(ALGO)
+
     with pytest.raises(ConfigError):
         get_detector("BertDetector", detector="NotARealDetector")
 

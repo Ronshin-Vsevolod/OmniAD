@@ -71,6 +71,7 @@ dev = [
     "pytest-cov>=4.0",
     "psutil>=6.0.0",
     "pandas>=1.3",
+    "build>=1.0",
 ]
 
 deep = [
@@ -101,5 +102,5 @@ all = [
     "omniad[deep,text,graph,viz,streaming]"
 ]
 
-[tool.setuptools]
-packages = ["omniad"]
+[tool.setuptools.packages.find]
+include = ["omniad*"]
