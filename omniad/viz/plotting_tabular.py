@@ -34,7 +34,7 @@ def plot_anomaly_scores(
     save_path : str, optional
         Path to save the image. If None, shows interactively.
     """
-    _check_viz_deps()
+    _check_viz_deps(require_seaborn=True)
     fig, ax = plt.subplots(figsize=(8, 5))
 
     sns.histplot(scores, bins=30, kde=True, ax=ax)

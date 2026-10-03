@@ -130,10 +130,19 @@ def test_reject_nan_skips_sparse_input() -> None:
     assert sp.issparse(result)
 
 
-def test_reject_nan_checks_sparse_matrix_data() -> None:
-    X = sp.csr_matrix([[1.0, np.nan], [2.0, 3.0]])
+@pytest.mark.parametrize("bad_value", [np.nan, np.inf, -np.inf])
+def test_reject_nan_rejects_non_finite_sparse_values(bad_value: float) -> None:
+    X = sp.csr_matrix([[1.0, bad_value], [2.0, 3.0]])
+
     with pytest.raises(DataFormatError):
         validate_input(X, {"reject_nan"})
+
+
+def test_reject_nan_preserves_finite_sparse_input() -> None:
+    X = sp.csr_matrix([[1.0, 0.0], [0.0, 2.0]])
+    result = validate_input(X, {"reject_nan"})
+
+    assert result is X
 
 
 # --- require_float32 ---

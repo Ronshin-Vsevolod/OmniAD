@@ -49,7 +49,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip setuptools wheel
-          pip install -e ".[dev]"
+          pip install -e ".[dev,viz]"
 
       - name: Run Tests
         run: |

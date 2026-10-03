@@ -16,23 +16,28 @@ except ImportError:
     sns = None
 
 
-def _check_viz_deps() -> None:
+def _check_viz_deps(require_seaborn: bool = False) -> None:
     """
-    Check if matplotlib and seaborn are installed.
+    Check visualization dependencies.
+
+    Parameters
+    ----------
+    require_seaborn : bool, default=False
+        Whether seaborn is required by the caller.
 
     Raises
     ------
     ImportError
-        If dependencies are missing.
+        If a required visualization dependency is missing.
     """
     if plt is None:
         raise ImportError(
             "matplotlib is required for visualization. "
             "Install it with: pip install omniad[viz]"
         )
-    if sns is None:
+    if require_seaborn and sns is None:
         raise ImportError(
-            "seaborn is required for visualization. "
+            "seaborn is required for this visualization. "
             "Install it with: pip install omniad[viz]"
         )
 
