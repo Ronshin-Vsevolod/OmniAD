@@ -31,6 +31,7 @@ def test_hst_parity_with_raw_river(random_xy_dataset: tuple[Any, Any, Any]) -> N
         threshold_strategy=None,
     ).fit(X_train)
 
+    assert model._cached_train_scores is not None
     np.testing.assert_allclose(model._cached_train_scores, raw_scores, rtol=1e-8)
 
 

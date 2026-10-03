@@ -5,7 +5,7 @@ separately registered OmniAD detector.
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import numpy.typing as npt
 
@@ -73,7 +73,10 @@ class BaseCompositionAdapter:
         """
         self._require_delegated("feature_importance")
         vectors = self._to_vectors(X) if X is not None else None
-        return self._detector.get_feature_importances(vectors, **kwargs)
+        return cast(
+            "npt.NDArray[Any]",
+            self._detector.get_feature_importances(vectors, **kwargs),
+        )
 
     @backend_boundary_method("predict_expected")
     def predict_expected(self, X: Any) -> npt.NDArray[Any]:
@@ -96,4 +99,7 @@ class BaseCompositionAdapter:
         """
         self._require_delegated("reconstruction")
         vectors = self._to_vectors(X)
-        return self._detector.predict_expected(vectors)
+        return cast(
+            "npt.NDArray[Any]",
+            self._detector.predict_expected(vectors),
+        )

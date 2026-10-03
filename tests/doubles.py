@@ -47,6 +47,7 @@ class DummyDetector(BaseDetector):
     def _save_backend(self, path: str) -> None:
         if self.fail_on == "save":
             raise RuntimeError("boom")
+        assert self._center is not None
         np.save(os.path.join(path, "center.npy"), self._center)
 
     def _load_backend(self, path: str) -> None:
