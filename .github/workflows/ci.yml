@@ -55,58 +55,58 @@ jobs:
         run: |
           pytest tests/ --cov=omniad --cov-report=xml
 
-    wheel:
-      name: Wheel Smoke Test
-      needs: quality
-      runs-on: ubuntu-latest
+  wheel:
+    name: Wheel Smoke Test
+    needs: quality
+    runs-on: ubuntu-latest
 
-      steps:
-        - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-        - name: Set up Python
-          uses: actions/setup-python@v5
-          with:
-            python-version: "3.12"
-            cache: "pip"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
 
-        - name: Build wheel
-          run: |
-            pip install --upgrade pip build
-            python -m build --wheel
+      - name: Build wheel
+        run: |
+          pip install --upgrade pip build
+          python -m build --wheel
 
-        - name: Install wheel
-          run: |
-            pip install dist/*.whl
+      - name: Install wheel
+        run: |
+          pip install dist/*.whl
 
-        - name: Test installed wheel
-          working-directory: /tmp
-          run: |
-            python - <<'PY'
-            import numpy as np
+      - name: Test installed wheel
+        working-directory: /tmp
+        run: |
+          python - <<'PY'
+          import numpy as np
 
-            import omniad
+          import omniad
 
-            X = np.random.default_rng(0).normal(size=(30, 3))
+          X = np.random.default_rng(0).normal(size=(30, 3))
 
-            model = omniad.get_detector(
-                "IsolationForest",
-                random_state=0,
-                n_jobs=1,
-            ).fit(X)
+          model = omniad.get_detector(
+              "IsolationForest",
+              random_state=0,
+              n_jobs=1,
+          ).fit(X)
 
-            scores = model.predict_score(X)
-            assert scores.shape == (30,)
-            assert np.isfinite(scores).all()
+          scores = model.predict_score(X)
+          assert scores.shape == (30,)
+          assert np.isfinite(scores).all()
 
-            path = "/tmp/omniad-model.zip"
-            model.save(path)
+          path = "/tmp/omniad-model.zip"
+          model.save(path)
 
-            loaded = omniad.get_detector("IsolationForest")
-            loaded.load(path)
+          loaded = omniad.get_detector("IsolationForest")
+          loaded.load(path)
 
-            np.testing.assert_allclose(
-                loaded.predict_score(X),
-                scores,
-                rtol=1e-7,
-            )
-            PY
+          np.testing.assert_allclose(
+              loaded.predict_score(X),
+              scores,
+              rtol=1e-7,
+          )
+          PY
