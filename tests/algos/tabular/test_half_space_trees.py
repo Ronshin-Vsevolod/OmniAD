@@ -6,7 +6,7 @@ import pytest
 
 from omniad import get_detector
 
-river = pytest.importorskip("river")
+river_anomaly = pytest.importorskip("river.anomaly")
 
 
 def test_hst_parity_with_raw_river(random_xy_dataset: tuple[Any, Any, Any]) -> None:
@@ -14,7 +14,7 @@ def test_hst_parity_with_raw_river(random_xy_dataset: tuple[Any, Any, Any]) -> N
     X_train, _, _ = random_xy_dataset
     seed, n_trees, window_size = 7, 10, 50
 
-    raw = river.anomaly.HalfSpaceTrees(
+    raw = river_anomaly.HalfSpaceTrees(
         n_trees=n_trees, window_size=window_size, seed=seed
     )
     raw_scores = []

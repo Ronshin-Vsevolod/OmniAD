@@ -86,7 +86,7 @@ def test_tfidf_separates_lexically_distinct_anomalies(text_dataset) -> None:
 
 
 def test_tfidf_delegates_feature_importance_to_inner_detector(text_dataset) -> None:
-    """D. Domain logic: regression test for the composition-delegation fix."""
+    """E. regression test for the composition-delegation fix."""
     train, test, _ = text_dataset
     model = get_detector("TfidfDetector").fit(train)
 
@@ -98,14 +98,14 @@ def test_tfidf_delegates_feature_importance_to_inner_detector(text_dataset) -> N
 
 
 def test_tfidf_reports_no_segmentation_or_incremental_learning() -> None:
-    """D. Domain logic: capabilities that don't survive flattening to a vector."""
+    """E. capabilities that don't survive flattening to a vector."""
     model = get_detector("TfidfDetector")
     assert model.capabilities["segmentation"] is False
     assert model.capabilities["incremental_learning"] is False
 
 
 def test_tfidf_load_restores_vectorizer(text_dataset, tmp_path) -> None:
-    """D. Domain logic: serialization preserves the fitted vocabulary."""
+    """E. serialization preserves the fitted vocabulary."""
     train, _, _ = text_dataset
     model = get_detector(
         "TfidfDetector",
@@ -123,7 +123,7 @@ def test_tfidf_load_restores_vectorizer(text_dataset, tmp_path) -> None:
 
 
 def test_tfidf_class_capabilities_match_default_detector() -> None:
-    """D. Domain logic: class discovery uses the default inner detector."""
+    """E. class discovery uses the default inner detector."""
     from omniad.algos.text.tfidf import TfidfDetectorAdapter
 
     assert "feature_importance" in TfidfDetectorAdapter.get_capabilities()
@@ -132,7 +132,7 @@ def test_tfidf_class_capabilities_match_default_detector() -> None:
 def test_tfidf_backend_state_is_not_duplicated_in_wrapper_state(
     text_dataset, tmp_path
 ) -> None:
-    """D. Domain logic: composed backend state is stored only once."""
+    """E. composed backend state is stored only once."""
     train, _, _ = text_dataset
     model = get_detector("TfidfDetector").fit(train)
 

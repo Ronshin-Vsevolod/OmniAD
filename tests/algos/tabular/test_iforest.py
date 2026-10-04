@@ -133,7 +133,7 @@ def test_iforest_feature_importance_logic() -> None:
 
 
 def test_iforest_native_importance_unavailable(random_xy_dataset) -> None:
-    """D. Domain logic: unlike tree ensembles such as RandomForest,
+    """E. unlike tree ensembles such as RandomForest,
     sklearn's IsolationForest exposes no native feature_importances_ —
     method='native' must fail structurally, not silently misreport."""
     X_train, _, _ = random_xy_dataset

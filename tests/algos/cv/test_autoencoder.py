@@ -38,6 +38,22 @@ def test_autoencoder_param_injection(image_dataset) -> None:
     assert model.model.encoder[2].out_channels == 8
 
 
+def test_autoencoder_custom_model_fn_is_used(image_dataset) -> None:
+    """B. Injection: model_fn overrides the default architecture."""
+    require_algo(ALGO)
+    import torch.nn as nn
+
+    X_train, _ = image_dataset
+    built: dict = {}
+
+    def tiny_shape_preserving_model(channels: int) -> nn.Module:
+        built["called_with"] = channels
+        return nn.Conv2d(channels, channels, kernel_size=1)
+
+    get_detector(ALGO, model_fn=tiny_shape_preserving_model, epochs=1).fit(X_train)
+    assert built["called_with"] == X_train.shape[1]
+
+
 def test_autoencoder_determinism(image_dataset) -> None:
     """C. Determinism."""
     require_algo(ALGO)
@@ -65,19 +81,3 @@ def test_autoencoder_predict_expected_matches_input_shape(image_dataset) -> None
     X_train, X_test = image_dataset
     model = get_detector(ALGO, epochs=1, hidden_dim=8).fit(X_train)
     assert model.predict_expected(X_test).shape == X_test.shape
-
-
-def test_autoencoder_custom_model_fn_is_used(image_dataset) -> None:
-    """D. Domain logic: model_fn overrides the default architecture."""
-    require_algo(ALGO)
-    import torch.nn as nn
-
-    X_train, _ = image_dataset
-    built: dict = {}
-
-    def tiny_shape_preserving_model(channels: int) -> nn.Module:
-        built["called_with"] = channels
-        return nn.Conv2d(channels, channels, kernel_size=1)
-
-    get_detector(ALGO, model_fn=tiny_shape_preserving_model, epochs=1).fit(X_train)
-    assert built["called_with"] == X_train.shape[1]

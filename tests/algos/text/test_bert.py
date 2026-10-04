@@ -64,14 +64,6 @@ def test_bert_chunking_handles_long_text_without_error() -> None:
     assert np.isfinite(scores).all()
 
 
-def test_bert_reports_no_segmentation_or_incremental_learning() -> None:
-    """D. Domain logic."""
-    require_algo(ALGO)
-    model = get_detector(ALGO, preset="debug")
-    assert model.capabilities["segmentation"] is False
-    assert model.capabilities["incremental_learning"] is False
-
-
 @pytest.mark.slow
 def test_bert_separates_known_anomalies_with_real_weights(text_dataset) -> None:
     """
@@ -85,8 +77,16 @@ def test_bert_separates_known_anomalies_with_real_weights(text_dataset) -> None:
     assert scores[y_test == 1].mean() > scores[y_test == 0].mean()
 
 
+def test_bert_reports_no_segmentation_or_incremental_learning() -> None:
+    """E."""
+    require_algo(ALGO)
+    model = get_detector(ALGO, preset="debug")
+    assert model.capabilities["segmentation"] is False
+    assert model.capabilities["incremental_learning"] is False
+
+
 def test_bert_class_capabilities_match_default_detector() -> None:
-    """D. Domain logic: class discovery uses the default inner detector."""
+    """E. class discovery uses the default inner detector."""
     from omniad.algos.text.bert import BertDetectorAdapter
 
     assert "feature_importance" in BertDetectorAdapter.get_capabilities()
@@ -95,7 +95,7 @@ def test_bert_class_capabilities_match_default_detector() -> None:
 def test_bert_save_weights_controls_transformer_persistence(
     text_dataset, tmp_path
 ) -> None:
-    """D. Domain logic: save_weights controls transformer weight persistence."""
+    """E. save_weights controls transformer weight persistence."""
     require_algo(ALGO)
     train, _, _ = text_dataset
 
@@ -123,7 +123,7 @@ def test_bert_save_weights_controls_transformer_persistence(
 
 
 def test_bert_rejects_unregistered_pooling_on_save(text_dataset, tmp_path) -> None:
-    """D. Domain logic: custom pooling must be registered before saving."""
+    """E. custom pooling must be registered before saving."""
     require_algo(ALGO)
     train, _, _ = text_dataset
 
@@ -141,7 +141,7 @@ def test_bert_rejects_unregistered_pooling_on_save(text_dataset, tmp_path) -> No
 
 
 def test_bert_rejects_unregistered_chunking_on_save(text_dataset, tmp_path) -> None:
-    """D. Domain logic: custom chunking must be registered before saving."""
+    """E. custom chunking must be registered before saving."""
     require_algo(ALGO)
     train, _, _ = text_dataset
 
@@ -161,7 +161,7 @@ def test_bert_rejects_unregistered_chunking_on_save(text_dataset, tmp_path) -> N
 def test_bert_registered_text_strategies_survive_roundtrip(
     text_dataset, tmp_path
 ) -> None:
-    """D. Domain logic: registered text strategies are restored by name."""
+    """E. registered text strategies are restored by name."""
     from omniad.utils.text import register_chunking_strategy, register_pooling
 
     require_algo(ALGO)
